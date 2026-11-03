@@ -1,5 +1,5 @@
 import './style.css'
-import { Life, decodeLife, encodeLife, whatIf, type LifeMode } from './sim/engine'
+import { ENGINE_VERSION, Life, decodeLife, encodeLife, whatIf, type LifeMode } from './sim/engine'
 import { CHOICES } from './sim/content'
 import type { ChoiceDef } from './sim/types'
 import { randomSeed } from './sim/rng'
@@ -56,7 +56,8 @@ function toast(msg: string) {
 function start() {
   const shared = new URLSearchParams(location.search).get('l')
   const code = shared ? decodeLife(shared) : null
-  const oldLink = !!shared && !code && /^\d+\./.test(shared)
+  // A link from an earlier engine version cannot be replayed; a damaged link is simply ignored.
+  const oldLink = !!shared && !code && /^\d+\./.test(shared) && Number(shared.split('.')[0]) < ENGINE_VERSION
   app.innerHTML = ''
   const langs = (['kz', 'ru', 'en'] as Lang[])
     .map(l => `<button data-l="${l}" class="${l === lang ? 'on' : ''}">${{ kz: 'ҚАЗ', ru: 'РУС', en: 'ENG' }[l]}</button>`)

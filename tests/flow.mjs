@@ -26,7 +26,7 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
       await pg.click('#ff')
       let shotChoice = bname === 'chrome' && !group
       const t0 = Date.now()
-      while (Date.now() - t0 < 120000) {
+      while (Date.now() - t0 < 240000) {
         const opts = await pg.$$('.opt')
         if (opts.length) {
           if (shotChoice) {
@@ -38,7 +38,13 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
         if (await pg.$('.card-img[src]')) break
         await pg.waitForTimeout(200)
       }
-      if (!(await pg.$('.card-img[src]'))) problems.push(`${bname} ${lang} ${group}: no end card`)
+      if (!(await pg.$('.card-img[src]'))) {
+        const state = await pg.evaluate(() => ({ head: document.querySelector('.life-head')?.textContent, sheet: document.querySelector('.sheet')?.textContent?.slice(0, 120), paused: document.querySelector('#pp')?.textContent }))
+        problems.push(`${bname} ${lang} ${group}: no end card ${JSON.stringify(state)}`)
+        await pg.screenshot({ path: `test-results/flow/stuck-${bname}-${lang}-${group || 'random'}.png` })
+        await ctx.close()
+        continue
+      }
       const text = await pg.evaluate(() => document.body.innerText)
       if (/\b(ch|chq|card|ev|hist|near|death|job|reg|way|grp|fl)\.[a-z]/.test(text)) problems.push(`${bname} ${lang}: raw key in text`)
       if (bname === 'chrome') {

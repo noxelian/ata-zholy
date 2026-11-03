@@ -78,7 +78,7 @@ test('lives make sense', { timeout: 120000 }, () => {
 test('lives from the review replay without contradictions', () => {
   for (const code of ['2.7uxzfm..000.', '2.1knsxik..000.', '2.1h1ygy6..000.', '2.1v41.kazakh.010110201.', '2.10lu..01011011.']) {
     const d = decodeLife(code)!
-    const p = new Life({ seed: d.seed, choices: d.choices, mode: d.mode }).runToEnd()
+    const p = new Life({ seed: d.seed, group: d.group, choices: d.choices, mode: d.mode }).runToEnd()
     const keys = p.log.map(e => e.key)
     expect(p.childYears.length, code).toBeGreaterThan(0)
     expect(keys.includes('spouse.war') && keys.some(k => k.startsWith('spouse.arrested')), code).toBe(false)
