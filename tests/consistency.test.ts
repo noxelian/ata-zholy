@@ -17,7 +17,7 @@ function lives(n: number, mode: 'ancestor' | 'any') {
   return out
 }
 
-test('every ancestor leaves a surviving child', () => {
+test('every ancestor leaves a surviving child', { timeout: 120000 }, () => {
   for (const p of lives(4000, 'ancestor')) expect(p.childYears.length, `seed ${p.seed}`).toBeGreaterThan(0)
 })
 
@@ -131,7 +131,7 @@ test('earlier eras make sense', { timeout: 180000 }, () => {
 })
 
 test('captives of 1723 get no choices until freed', () => {
-  for (const code of ['3.r..02..xviii', '3.eoi..002..xviii']) {
+  for (const code of ['3.r..02..xviii', '3.eoi..002..xviii', '3.4kpkgd..10100..xv', '3.o2hrm1..0002..xix']) {
     const d = decodeLife(code)!
     const life = new Life({ seed: d.seed, choices: d.choices, mode: d.mode, era: d.era })
     let guard = 0

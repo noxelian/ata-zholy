@@ -102,6 +102,8 @@ export class Life {
       // then see exactly the same questions even when an answer changes what fits later in the same year.
       if (this.done.has(ch.id) || this.tried.has(ch.id)) continue
       this.tried.add(ch.id)
+      // A captive decides nothing about their own life, in any era (choices about a captive relative are separate flags).
+      if (p.flags.has('captive')) continue
       if (!ch.when(this.ctx())) continue
       if (ch.chance && !this.r.chance(ch.chance(this.ctx()))) continue
       this.done.add(ch.id)
