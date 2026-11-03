@@ -108,7 +108,7 @@ export const CHOICES_18: ChoiceDef[] = [
   },
   {
     id: 'e18.biy',
-    when: c => male(c) && c.age === 12 && home(c),
+    when: c => male(c) && c.age === 12 && home(c) && free(c),
     chance: () => 0.3,
     options: [
       { id: 'study', apply: c => set(c, 'e18.biy_student') },
@@ -118,7 +118,7 @@ export const CHOICES_18: ChoiceDef[] = [
   },
   {
     id: 'e18.amenger',
-    when: c => !male(c) && has(c, 'widowed_now') && c.age <= 55,
+    when: c => !male(c) && has(c, 'widowed_now') && c.age <= 55 && free(c),
     options: [
       { id: 'accept', apply: c => (del(c, 'widowed_now', 'widowed'), set(c, 'e18.amenger')) },
       { id: 'leave', apply: c => (del(c, 'widowed_now'), set(c, 'e18.left_kin')) },

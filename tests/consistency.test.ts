@@ -104,7 +104,10 @@ test('earlier eras make sense', { timeout: 180000 }, () => {
       let guard = 0
       while (life.p.alive && guard++ < 200) {
         let s = life.next()
-        while (s.kind === 'choice') s = life.choose((seed >> guard % 16) % s.choice.options.length)
+        while (s.kind === 'choice') {
+          if (life.p.flags.has('captive')) bad.push(`${era} ${seed}: asked ${s.choice.id} in ${s.year} while captive`)
+          s = life.choose((seed >> guard % 16) % s.choice.options.length)
+        }
       }
       const p = life.p
       const keys = p.log.map(e => e.key)
@@ -115,7 +118,7 @@ test('earlier eras make sense', { timeout: 180000 }, () => {
       if (i0 >= 0) {
         let j = keys.findIndex((k, n) => n > i0 && /captive\.(free|back)|ransom|death\./.test(k))
         if (j < 0) j = keys.length
-        const inside = keys.slice(i0 + 1, j).filter(k => /^(ch\.|marry|child\.)/.test(k))
+        const inside = keys.slice(i0 + 1, j).filter(k => /^(ch\.|marry|child\.)/.test(k) && !/^ch\.e1[589]\.ransom/.test(k))
         if (inside.length) bad.push(`${era} ${seed}: captive then ${inside.join(',')}`)
       }
       // Nobody dies in a rising they left by going abroad.
@@ -125,4 +128,19 @@ test('earlier eras make sense', { timeout: 180000 }, () => {
     }
   }
   expect(bad.slice(0, 20)).toEqual([])
+})
+
+test('captives of 1723 get no choices until freed', () => {
+  for (const code of ['3.r..02..xviii', '3.eoi..002..xviii']) {
+    const d = decodeLife(code)!
+    const life = new Life({ seed: d.seed, choices: d.choices, mode: d.mode, era: d.era })
+    let guard = 0
+    while (life.p.alive && guard++ < 200) {
+      let s = life.next()
+      while (s.kind === 'choice') {
+        expect(life.p.flags.has('captive'), `${code}: ${s.choice.id} in ${s.year} while captive`).toBe(false)
+        s = life.choose(0)
+      }
+    }
+  }
 })
