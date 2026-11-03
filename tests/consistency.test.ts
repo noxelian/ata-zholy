@@ -1,0 +1,81 @@
+import { expect, test } from 'vitest'
+import { Life, decodeLife } from '../src/sim/engine'
+import { GROUPS } from '../src/sim/birth'
+
+function lives(n: number, mode: 'ancestor' | 'any') {
+  const out = []
+  for (let i = 1; i <= n; i++) {
+    const seed = (i * 2246822519) >>> 0
+    const life = new Life({ seed, mode, group: i % 4 === 0 ? GROUPS[i % GROUPS.length] : undefined })
+    let guard = 0
+    while (life.p.alive && guard++ < 200) {
+      let s = life.next()
+      while (s.kind === 'choice') s = life.choose((seed >> guard % 16) % s.choice.options.length)
+    }
+    out.push(life.p)
+  }
+  return out
+}
+
+test('every ancestor leaves a surviving child', () => {
+  for (const p of lives(4000, 'ancestor')) expect(p.childYears.length, `seed ${p.seed}`).toBeGreaterThan(0)
+})
+
+test('lives make sense', () => {
+  const bad: string[] = []
+  for (const p of lives(6000, 'ancestor').concat(lives(3000, 'any'))) {
+    const keys = p.log.map(e => e.key)
+    const yearOf = (k: string) => p.log.find(e => e.key === k)?.year
+    // Nothing that needs freedom happens in captivity or in ALZhIR.
+    const spans: [string, string[]][] = [
+      ['war.captive', ['captive.back', 'death.captive']],
+      ['spouse.arrested.alzhir', ['alzhir.free']],
+      ['repressed.camp', ['camp.free']],
+      ['repressed.commuted', ['camp.free']],
+      ['trudarmy', ['trudarmy.back']],
+      ['war.draft', ['war.back', 'war.back.medal', 'war.invalid', 'war.captive', 'death.war', 'death.missing']],
+      ['war.volunteer', ['war.back', 'war.back.medal', 'war.invalid', 'war.captive', 'death.war', 'death.missing']],
+    ]
+    for (const [from, to] of spans) {
+      const i = keys.indexOf(from)
+      if (i < 0) continue
+      let j = keys.findIndex((k, n) => n > i && to.includes(k))
+      if (j < 0) j = keys.length
+      const inside = keys.slice(i + 1, j).filter(k => /^(war\.draft|graduate|marry|widow\.remarry|child\.|ch\.homefront|ch\.study|ch\.virgin|ch\.front)/.test(k))
+      if (inside.length) bad.push(`${p.seed}: ${from} then ${inside.join(',')}`)
+    }
+    // A husband is lost only once.
+    if (keys.includes('spouse.war') && keys.some(k => k.startsWith('spouse.arrested'))) bad.push(`${p.seed}: husband arrested and then killed at the front`)
+    // An execution is the end of a life.
+    if (keys.includes('repressed.shot') && p.deathCause !== 'shot') bad.push(`${p.seed}: shot but lived`)
+    // A grandchild needs a grown child.
+    const g = yearOf('grandchild')
+    if (g !== undefined && g - p.childYears[0] < 18) bad.push(`${p.seed}: grandchild too early`)
+    // The Alash autonomy was proclaimed in December 1917.
+    const a = yearOf('hist.alash')
+    if (a !== undefined && a !== 1917) bad.push(`${p.seed}: alash in ${a}`)
+    const z = yearOf('spouse.arrested.alzhir')
+    if (z !== undefined && z < 1938) bad.push(`${p.seed}: ALZhIR in ${z}`)
+  }
+  expect(bad.slice(0, 20)).toEqual([])
+})
+
+test('lives from the review replay without contradictions', () => {
+  for (const code of ['1.7uxzfm..000.', '1.1knsxik..000.', '1.1h1ygy6..000.']) {
+    const d = decodeLife(code)!
+    const p = new Life({ seed: d.seed, choices: d.choices, mode: d.mode }).runToEnd()
+    const keys = p.log.map(e => e.key)
+    expect(p.childYears.length, code).toBeGreaterThan(0)
+    expect(keys.includes('spouse.war') && keys.some(k => k.startsWith('spouse.arrested')), code).toBe(false)
+    const camp = p.log.find(e => e.key === 'repressed.camp' || e.key === 'repressed.commuted')?.year
+    const out = p.log.find(e => e.key === 'camp.free')?.year ?? 9999
+    if (camp) expect(p.log.some(e => (e.key === 'marry' || e.key === 'widow.remarry') && e.year > camp && e.year < out), code).toBe(false)
+  }
+})
+
+test('broken links are refused', () => {
+  for (const code of ['1.1.bad.0.', '1.1.kazakh.x.', '1..kazakh..', '2.1...', '1.-5...', '1.zzzzzzzzzz...', '1.1.kazakh.9.']) {
+    expect(decodeLife(code), code).toBeNull()
+  }
+  expect(decodeLife('1.abc.kazakh.012.')).not.toBeNull()
+})
