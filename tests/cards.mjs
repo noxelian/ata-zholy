@@ -7,7 +7,7 @@ for (const lang of ['ru', 'kz']) for (const seed of seeds) {
   const pg = await b.newPage({ ...devices['Pixel 7'] })
   await pg.goto(url)
   await pg.evaluate(l => localStorage.setItem('lang', l), lang)
-  await pg.goto(url + `?l=1.${Number(seed).toString(36)}...`)
+  await pg.goto(url + `?l=2.${Number(seed).toString(36)}...`)
   await pg.click('#watch')
   const t0 = Date.now()
   while (Date.now() - t0 < 90000) {

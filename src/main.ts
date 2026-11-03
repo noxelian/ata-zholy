@@ -56,6 +56,7 @@ function toast(msg: string) {
 function start() {
   const shared = new URLSearchParams(location.search).get('l')
   const code = shared ? decodeLife(shared) : null
+  const oldLink = !!shared && !code && /^\d+\./.test(shared)
   app.innerHTML = ''
   const langs = (['kz', 'ru', 'en'] as Lang[])
     .map(l => `<button data-l="${l}" class="${l === lang ? 'on' : ''}">${{ kz: 'ҚАЗ', ru: 'РУС', en: 'ENG' }[l]}</button>`)
@@ -71,6 +72,7 @@ function start() {
       <div class="sub">${esc(t('sub'))}</div>
       <p>${esc(t('intro1'))}</p>
     </div>
+    ${oldLink ? `<div class="shared-banner">${esc(t('oldLink'))}</div>` : ''}
     ${code ? `<div class="shared-banner">${esc(t('sharedBanner'))}</div><button class="ghost-btn" id="watch">${esc(t('watch'))}</button>` : ''}
     <button class="big-btn" id="born">${esc(t('born'))}</button>
     <ol class="how">

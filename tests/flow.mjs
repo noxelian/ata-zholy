@@ -74,9 +74,9 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
   const b = await chromium.launch({ channel: 'chrome' })
   const pg = await b.newPage({ ...devices['Pixel 7'] })
   pg.on('pageerror', e => problems.push(`rewind pageerror ${e.message}`))
-  await pg.goto(url + '?l=1.4...')
+  await pg.goto(url + '?l=2.4...')
   await pg.evaluate(() => localStorage.setItem('lang', 'ru'))
-  await pg.goto(url + '?l=1.4...')
+  await pg.goto(url + '?l=2.4...')
   await pg.click('#watch')
   for (let t0 = Date.now(); Date.now() - t0 < 90000; ) {
     const o = await pg.$$('.opt')
@@ -98,7 +98,7 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
   const b = await chromium.launch({ channel: 'chrome' })
   const pg = await b.newPage({ ...devices['Pixel 7'] })
   pg.on('pageerror', e => problems.push(`seed4 pageerror ${e.message}`))
-  await pg.goto(url + '?l=1.4...')
+  await pg.goto(url + '?l=2.4...')
   await pg.click('#watch')
   const t0 = Date.now()
   while (Date.now() - t0 < 90000) {
@@ -108,7 +108,7 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
     await pg.waitForTimeout(200)
   }
   if (!(await pg.$('.card-img[src]'))) problems.push('seed4: stuck')
-  for (const bad of ['?l=1.1.bad.0.', '?l=1.1.kazakh.x.']) {
+  for (const bad of ['?l=2.1.bad.0.', '?l=2.1.kazakh.x.']) {
     await pg.goto(url + bad)
     if (await pg.$('#watch')) problems.push(`broken link ${bad} offered`)
     if (!(await pg.$('#born'))) problems.push(`broken link ${bad} broke the page`)

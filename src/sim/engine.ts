@@ -3,7 +3,8 @@ import type { ChoiceDef, Ctx, Group, LogEntry, Person, Step } from './types'
 import { GROUPS, born, type BirthFacts } from './birth'
 import { CHOICES, EVENTS, HAZARDS } from './content'
 
-export const ENGINE_VERSION = 1
+/** Bumped whenever a seed + choices would give a different life. Old links show a notice. */
+export const ENGINE_VERSION = 2
 const MAX_AGE = 104
 
 export interface LifeOptions {
@@ -92,8 +93,11 @@ export class Life {
   private runChoices(): Step | null {
     const p = this.p
     for (const ch of CHOICES) {
-      if (this.done.has(ch.id) || this.tried.has(ch.id) || !ch.when(this.ctx())) continue
+      // Each choice is looked at once a year, in list order, whether or not it fits: live play and replays
+      // then see exactly the same questions even when an answer changes what fits later in the same year.
+      if (this.done.has(ch.id) || this.tried.has(ch.id)) continue
       this.tried.add(ch.id)
+      if (!ch.when(this.ctx())) continue
       if (ch.chance && !this.r.chance(ch.chance(this.ctx()))) continue
       this.done.add(ch.id)
       let pick: number | undefined

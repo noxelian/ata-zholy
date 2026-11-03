@@ -11,7 +11,9 @@ const wed = (c: Ctx, key: string) => {
   c.p.spouse = 'yes'
   c.p.log.push({ year: c.year, age: c.age, key, tone: 'good', big: true })
 }
+/** Moving to a town inside the country; someone living abroad stays abroad (returning is its own event). */
 const toTown = (c: Ctx) => {
+  if (c.p.way === 'abroad') return
   c.p.way = 'town'
   set(c, 'moved_town')
 }
@@ -61,7 +63,7 @@ export const CHOICES_MORE: ChoiceDef[] = [
   {
     id: 'wedding_kz',
     variants: true,
-    when: c => !c.p.spouse && kz(c) && c.year < 1955 && free(c) && (male(c) ? c.age >= 19 && (c.age <= 40 || needChild(c)) : c.age >= 16 && (c.age <= 35 || needChild(c))),
+    when: c => !c.p.spouse && kz(c) && c.year < 1955 && free(c) && (home(c) || needChild(c)) && (male(c) ? c.age >= 19 && (c.age <= 40 || needChild(c)) : c.age >= 16 && (c.age <= 35 || needChild(c))),
     chance: c => (needChild(c) && c.age >= (male(c) ? 34 : 30) ? 1 : marryChance(c) * (y(c, 1941, 1945) ? 0.35 : 1)),
     q: c => (male(c) ? 'chq.wedding_kz.m' : 'chq.wedding_kz.f'),
     options: [
@@ -214,10 +216,21 @@ export const CHOICES_MORE: ChoiceDef[] = [
     ],
     typical: () => [0.6, 0.4],
   },
-  // The 1990s.
+  // The 1990s in town.
+  {
+    id: 'nineties_town',
+    when: c => c.year === 1992 && c.age >= 18 && c.age <= 70 && home(c) && c.p.way === 'town' && c.p.group !== 'german',
+    options: [
+      { id: 'garden', apply: c => set(c, 'dacha') },
+      { id: 'trade', apply: c => set(c, 'trader') },
+      { id: 'side', apply: c => set(c, 'side_job') },
+    ],
+    typical: c => (c.age > 55 ? [0.7, 0.05, 0.25] : [0.35, 0.35, 0.3]),
+  },
+  // The 1990s in the countryside.
   {
     id: 'nineties',
-    when: c => c.year === 1992 && c.age >= 18 && c.age <= 70 && home(c) && c.p.group !== 'german',
+    when: c => c.year === 1992 && c.age >= 18 && c.age <= 70 && home(c) && c.p.way !== 'town' && c.p.group !== 'german',
     options: [
       { id: 'herd', apply: c => set(c, 'own_herd') },
       { id: 'trade', apply: c => set(c, 'trader') },
@@ -255,6 +268,8 @@ export const EVENTS_MORE: EventDef[] = [
   once('old_town.line', c => has(c, 'old_town') && c.age >= 64, 0.6, 'calm'),
   once('herd.line', c => has(c, 'own_herd') && c.year >= 1994, 0.5, 'calm'),
   once('trader.line', c => has(c, 'trader') && c.year >= 1993, 0.7, 'calm', true),
+  once('dacha.line', c => has(c, 'dacha') && c.year >= 1993, 0.6, 'calm'),
+  once('side_job.line', c => has(c, 'side_job') && c.year >= 1993, 0.6, 'calm'),
   once('steel.line', c => c.p.job === 'job.steel' && c.year === 1959 && home(c), 0.6, 'history'),
   once('oil.line', c => c.p.job === 'job.oil' && c.year >= 1966, 0.8, 'calm', true),
   // The 1953 hydrogen bomb test: people from nearby villages were taken away for the day (model).
@@ -263,22 +278,22 @@ export const EVENTS_MORE: EventDef[] = [
   // Rare events.
   once('rare.kemin1911', c => c.p.region === 'zhetisu' && c.year === 1911 && home(c), 1, 'history'),
   once('rare.sel1921', c => c.p.region === 'zhetisu' && c.year === 1921 && home(c), 0.4, 'history'),
-  once('rare.zhambyl', c => kz(c) && c.p.region === 'zhetisu' && y(c, 1936, 1944) && c.age >= 8, 0.08, 'good', true),
-  once('rare.auezov', c => c.p.region === 'shygys' && y(c, 1925, 1955) && c.age >= 10 && c.p.literate, 0.02, 'good', true),
-  once('rare.baikonur', c => (c.p.region === 'syr' || c.p.region === 'arka') && y(c, 1957, 1975) && home(c), 0.12, 'good', true),
-  once('rare.brother', c => y(c, 1956, 1990) && (has(c, 'famine') || has(c, 'fled') || has(c, 'deported')) && home(c), 0.012, 'good', true),
+  once('rare.zhambyl', c => kz(c) && c.p.region === 'zhetisu' && y(c, 1936, 1944) && c.age >= 8 && home(c) && free(c), 0.012, 'good', true),
+  once('rare.auezov', c => c.p.region === 'shygys' && y(c, 1925, 1955) && c.age >= 10 && c.p.literate && home(c) && free(c), 0.003, 'good', true),
+  once('rare.baikonur', c => (c.p.region === 'syr' || c.p.region === 'arka') && y(c, 1957, 1975) && home(c) && free(c), 0.006, 'good', true),
+  once('rare.brother', c => y(c, 1956, 1990) && (has(c, 'famine') || has(c, 'fled') || has(c, 'deported')) && home(c) && free(c), 0.003, 'good', true),
   once('rare.hero_mother', c => !male(c) && c.p.childYears.length >= 10 && c.year >= 1944, 1, 'good', true),
-  once('rare.car', c => y(c, 1965, 1990) && c.age >= 30 && c.age <= 65 && home(c), 0.015, 'good', true),
-  once('rare.plane', c => y(c, 1958, 1985) && c.age >= 20 && home(c), 0.03, 'good'),
-  once('rare.wolf_hunt', c => nomadic(c) && has(c, 'horseman') && c.age >= 14 && c.age <= 30 && c.year < 1935, 0.04, 'good', true),
-  once('rare.fire', c => c.age >= 10 && home(c) && free(c) && c.year < 1975, 0.004, 'bad', true),
+  once('rare.car', c => y(c, 1965, 1990) && c.age >= 30 && c.age <= 65 && home(c) && free(c), 0.006, 'good', true),
+  once('rare.plane', c => y(c, 1958, 1985) && c.age >= 20 && home(c) && free(c), 0.012, 'good'),
+  once('rare.wolf_hunt', c => nomadic(c) && has(c, 'horseman') && c.age >= 14 && c.age <= 30 && c.year < 1935 && home(c) && free(c), 0.01, 'good', true),
+  once('rare.fire', c => c.age >= 10 && home(c) && free(c) && c.year < 1975, 0.002, 'bad', true),
 
   // Everyday texture: one small line in some quiet years, picked to fit the time and the person.
   {
     id: 'tex',
     tone: 'calm',
     when: c => c.age >= 8 && home(c) && free(c),
-    chance: () => 0.33,
+    chance: () => 0.45,
     apply: c => {
       const pool = texture(c)
       if (!pool.length) return { silent: true }
@@ -296,17 +311,23 @@ function texture(c: Ctx): string[] {
     return out
   }
   if (nomadic(c) && yr < 1930) out.push('tex.nomad.move', 'tex.nomad.kumys', 'tex.nomad.foal')
-  if (p.job === 'job.kolkhoz' || p.job === 'job.horses' || p.job === 'job.tractor') out.push('tex.kolkhoz.harvest', 'tex.kolkhoz.drought', 'tex.kolkhoz.workdays')
+  if (p.job === 'job.kolkhoz' || p.job === 'job.horses' || p.job === 'job.tractor') {
+    out.push('tex.kolkhoz.harvest', 'tex.kolkhoz.drought')
+    // Collective farms paid in workdays until the 1966 reform.
+    if (yr < 1966) out.push('tex.kolkhoz.workdays')
+  }
   if (p.job === 'job.miner' || p.job === 'job.steel' || p.job === 'job.oil' || p.job === 'job.worker' || p.job === 'job.builder') out.push('tex.work.shift', 'tex.work.plan', 'tex.work.hostel')
   if (p.job === 'job.teacher') out.push('tex.teacher.class', 'tex.teacher.letter')
   if (p.job === 'job.craft') out.push('tex.craft.order', 'tex.craft.felt')
   if (p.way === 'town' && yr >= 1955) out.push('tex.town.flat', 'tex.town.queue')
-  if (yr >= 1950 && p.childYears.length) out.push('tex.family.school', 'tex.family.letter')
+  if (p.childYears.some(b => yr - b === 7)) out.push('tex.family.school')
+  if (has(c, 'kid_city') && p.childYears.length && yr - p.childYears[0] >= 19) out.push('tex.family.letter')
   if (kz(c)) out.push('tex.kz.guests')
   // Nauryz was not officially celebrated from 1926 to 1988.
   if (kz(c) && (yr < 1926 || yr >= 1988)) out.push('tex.kz.nauryz')
   if (yr >= 1960) out.push('tex.radio.song', 'tex.summer.relatives')
-  if (c.age >= 55) out.push('tex.old.grandkids', 'tex.old.health')
+  if (c.age >= 55) out.push('tex.old.health')
+  if (c.age >= 55 && p.grandchildren > 0) out.push('tex.old.grandkids')
   if (c.age < 18) out.push('tex.kid.friends', 'tex.kid.river')
   return out
 }

@@ -32,7 +32,7 @@ test('lives are varied and full', { timeout: 120000 }, () => {
   writeFileSync('test-results/variety.json', JSON.stringify(r, null, 1))
   expect(r.choicesPerLife).toBeGreaterThan(5.5)
   expect(r.after1945PerLife).toBeGreaterThan(2)
-  expect(r.quietShare).toBeLessThan(0.4)
+  expect(r.quietShare).toBeLessThan(0.35)
   expect(r.topPathShare).toBeLessThan(0.03)
   expect(r.firstChoiceSchool).toBeLessThan(0.4)
   expect(r.distinctPaths).toBeGreaterThan(1500)

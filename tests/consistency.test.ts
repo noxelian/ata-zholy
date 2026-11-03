@@ -41,8 +41,23 @@ test('lives make sense', { timeout: 120000 }, () => {
       if (i < 0) continue
       let j = keys.findIndex((k, n) => n > i && to.includes(k))
       if (j < 0) j = keys.length
-      const inside = keys.slice(i + 1, j).filter(k => /^(war\.draft|graduate|marry|widow\.remarry|child\.|ch\.homefront|ch\.study|ch\.virgin|ch\.front)/.test(k))
+      const inside = keys.slice(i + 1, j).filter(k => /^(war\.draft|graduate|marry|widow\.remarry|child\.|ch\.homefront|ch\.study|ch\.virgin|ch\.front|rare\.(zhambyl|auezov|baikonur|car|plane|wolf_hunt|brother)|tex\.(?!hard))/.test(k))
       if (inside.length) bad.push(`${p.seed}: ${from} then ${inside.join(',')}`)
+    }
+    // Abroad until the return: nothing that only happens at home.
+    for (const fled of ['ch.collect.flee', 'ch.famine.leave']) {
+      const i = keys.indexOf(fled)
+      if (i < 0) continue
+      let j = keys.findIndex((k, n) => n > i && k === 'flight.return')
+      if (j < 0) j = keys.length
+      const inside = keys.slice(i + 1, j).filter(k => /^(war\.draft|ch\.postwar|ch\.career|ch\.virgin|hist\.1941|repressed)/.test(k))
+      if (inside.length) bad.push(`${p.seed}: abroad but ${inside.join(',')}`)
+    }
+    // Family texture follows the real family.
+    for (const e of p.log) {
+      if (e.key === 'tex.family.school' && !p.childYears.some(b => e.year - b === 7)) bad.push(`${p.seed}: school without a 7-year-old`)
+      if (e.key === 'tex.old.grandkids' && !p.log.some(x => x.key === 'grandchild' && x.year <= e.year)) bad.push(`${p.seed}: grandkids before a grandchild`)
+      if (e.key === 'tex.kolkhoz.workdays' && e.year >= 1966) bad.push(`${p.seed}: workdays in ${e.year}`)
     }
     // A husband is lost only once.
     if (keys.includes('spouse.war') && keys.some(k => k.startsWith('spouse.arrested'))) bad.push(`${p.seed}: husband arrested and then killed at the front`)
@@ -61,7 +76,7 @@ test('lives make sense', { timeout: 120000 }, () => {
 })
 
 test('lives from the review replay without contradictions', () => {
-  for (const code of ['1.7uxzfm..000.', '1.1knsxik..000.', '1.1h1ygy6..000.']) {
+  for (const code of ['2.7uxzfm..000.', '2.1knsxik..000.', '2.1h1ygy6..000.', '2.1v41.kazakh.010110201.', '2.10lu..01011011.']) {
     const d = decodeLife(code)!
     const p = new Life({ seed: d.seed, choices: d.choices, mode: d.mode }).runToEnd()
     const keys = p.log.map(e => e.key)
@@ -74,8 +89,8 @@ test('lives from the review replay without contradictions', () => {
 })
 
 test('broken links are refused', () => {
-  for (const code of ['1.1.bad.0.', '1.1.kazakh.x.', '1..kazakh..', '2.1...', '1.-5...', '1.zzzzzzzzzz...', '1.1.kazakh.9.']) {
+  for (const code of ['2.1.bad.0.', '2.1.kazakh.x.', '2..kazakh..', '3.1...', '2.-5...', '2.zzzzzzzzzz...', '2.1.kazakh.9.']) {
     expect(decodeLife(code), code).toBeNull()
   }
-  expect(decodeLife('1.abc.kazakh.012.')).not.toBeNull()
+  expect(decodeLife('2.abc.kazakh.012.')).not.toBeNull()
 })
