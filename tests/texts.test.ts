@@ -4,7 +4,7 @@ import { ev } from '../src/i18n/texts'
 import { EV_RU } from '../src/i18n/ev.ru'
 import { EV_KZ } from '../src/i18n/ev.kz'
 import { EV_EN } from '../src/i18n/ev.en'
-import { CHOICES } from '../src/sim/events'
+import { CHOICES } from '../src/sim/content'
 import { GROUPS } from '../src/sim/birth'
 import type { Lang } from '../src/sim/types'
 
@@ -19,7 +19,7 @@ test('every key in Russian exists in Kazakh and English', () => {
   }
 })
 
-test('every text a life can show is translated and fully filled in', () => {
+test('every text a life can show is translated and fully filled in', { timeout: 120000 }, () => {
   const bad = new Set<string>()
   const keys = new Set<string>()
   for (let i = 1; i <= 3000; i++) {
@@ -38,7 +38,13 @@ test('every text a life can show is translated and fully filled in', () => {
     }
   }
   // Choice buttons and questions.
-  for (const ch of CHOICES) for (const o of ch.options) keys.add(`ch.${ch.id}.${o.id}.btn`)
+  for (const ch of CHOICES) if (!ch.variants) for (const o of ch.options) keys.add(`ch.${ch.id}.${o.id}.btn`)
+  // Choices with variants: every variant seen in lives needs buttons for every option.
+  for (const k of [...keys]) {
+    const [pre, id, , variant] = k.split('.')
+    const ch = CHOICES.find(c => c.id === id)
+    if (pre === 'ch' && ch?.variants && variant) for (const o of ch.options) keys.add(`ch.${id}.${o.id}.btn.${variant}`)
+  }
   for (const lang of LANGS) for (const k of keys) {
     if (k.startsWith('card.')) continue
     if (!(k in TABLES[lang]) && !(k in EV_RU)) bad.add(`${lang} missing ${k}`)

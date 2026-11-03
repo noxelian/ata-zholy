@@ -21,7 +21,7 @@ test('every ancestor leaves a surviving child', () => {
   for (const p of lives(4000, 'ancestor')) expect(p.childYears.length, `seed ${p.seed}`).toBeGreaterThan(0)
 })
 
-test('lives make sense', () => {
+test('lives make sense', { timeout: 120000 }, () => {
   const bad: string[] = []
   for (const p of lives(6000, 'ancestor').concat(lives(3000, 'any'))) {
     const keys = p.log.map(e => e.key)

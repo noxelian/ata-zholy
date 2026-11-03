@@ -46,6 +46,13 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
         const card = await pg.$('.card-img')
         await card.screenshot({ path: `test-results/flow/${lang}-${group || 'random'}-card.png` })
       }
+      // Forks: every choice is listed with alternatives; going back asks the same question again.
+      const forks = await pg.$$('.fork')
+      const choicesMade = await pg.evaluate(() => document.querySelectorAll('.fork').length)
+      if (!choicesMade && !(await pg.$('.forks .lead'))) problems.push(`${bname} ${lang} ${group}: no forks section`)
+      if (bname === 'chrome' && lang === 'ru' && forks.length) {
+        await (await pg.$('.forks')).screenshot({ path: `test-results/flow/forks-${group || 'random'}.png` })
+      }
       // Shared link replays the same life.
       const link = await pg.evaluate(() => [...document.querySelectorAll('.lead')][0].innerText)
       if (group === 'kazakh') {
@@ -60,6 +67,30 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
       process.stdout.write(`${bname} ${lang} ${group || 'random'}: ${link.split('\n')[0]}\n`)
     }
   }
+  await b.close()
+}
+// Going back to a fork replays the life up to it and asks again.
+{
+  const b = await chromium.launch({ channel: 'chrome' })
+  const pg = await b.newPage({ ...devices['Pixel 7'] })
+  pg.on('pageerror', e => problems.push(`rewind pageerror ${e.message}`))
+  await pg.goto(url + '?l=1.4...')
+  await pg.evaluate(() => localStorage.setItem('lang', 'ru'))
+  await pg.goto(url + '?l=1.4...')
+  await pg.click('#watch')
+  for (let t0 = Date.now(); Date.now() - t0 < 90000; ) {
+    const o = await pg.$$('.opt')
+    if (o.length) await o[0].click()
+    if (await pg.$('.card-img[src]')) break
+    await pg.waitForTimeout(150)
+  }
+  const forkYears = await pg.$$eval('.fork .y', els => els.map(e => e.textContent))
+  if (forkYears.length < 3) problems.push(`rewind: only ${forkYears.length} forks`)
+  const target = forkYears[2]
+  await (await pg.$$('.fork .link-btn'))[2].click()
+  await pg.waitForSelector('.opt', { timeout: 60000 })
+  const asked = await pg.$eval('.sheet h2', e => e.textContent)
+  if (!target || !asked.startsWith(target.split(' ·')[0])) problems.push(`rewind asked "${asked}" for fork "${target}"`)
   await b.close()
 }
 // Seed 4: the first year already asks a question (Codex review, blocker 1).

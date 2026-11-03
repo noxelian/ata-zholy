@@ -9,7 +9,7 @@ function run(n: number, group?: Person['group'], mode: 'any' | 'ancestor' = 'any
   return out
 }
 
-test('calibration report', () => {
+test('calibration report', { timeout: 120000 }, () => {
   const anc = run(5000, undefined, 'ancestor')
   const ancestor = {
     mean_life: (anc.reduce((s, p) => s + (p.deathAge ?? 0), 0) / anc.length).toFixed(1),

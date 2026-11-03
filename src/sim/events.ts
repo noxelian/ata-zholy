@@ -2,18 +2,18 @@ import type { ChoiceDef, Ctx, EventDef, Hazard } from './types'
 import { FAMINE21_REGION, FAMINE_Q, FAMINE_REGION, baseQ } from './data'
 
 // ---------- helpers ----------
-const kz = (c: Ctx) => c.p.group === 'kazakh'
-const home = (c: Ctx) => c.p.way !== 'abroad'
-const has = (c: Ctx, f: string) => c.p.flags.has(f)
-const set = (c: Ctx, ...f: string[]) => f.forEach(x => c.p.flags.add(x))
-const del = (c: Ctx, ...f: string[]) => f.forEach(x => c.p.flags.delete(x))
-const male = (c: Ctx) => c.p.sex === 'm'
+export const kz = (c: Ctx) => c.p.group === 'kazakh'
+export const home = (c: Ctx) => c.p.way !== 'abroad'
+export const has = (c: Ctx, f: string) => c.p.flags.has(f)
+export const set = (c: Ctx, ...f: string[]) => f.forEach(x => c.p.flags.add(x))
+export const del = (c: Ctx, ...f: string[]) => f.forEach(x => c.p.flags.delete(x))
+export const male = (c: Ctx) => c.p.sex === 'm'
 /** Not at the front, in captivity, in a camp or in the labour army: free to study, marry, work. */
-const free = (c: Ctx) => !['front', 'captive', 'camp', 'alzhir', 'trudarmy'].some(f => c.p.flags.has(f))
+export const free = (c: Ctx) => !['front', 'captive', 'camp', 'alzhir', 'trudarmy'].some(f => c.p.flags.has(f))
 /** Ancestor mode passes this flag: the first child must survive. */
-const needChild = (c: Ctx) => c.p.flags.has('ancestor') && c.p.childYears.length === 0
-const y = (c: Ctx, a: number, b = a) => c.year >= a && c.year <= b
-const hist = (id: string, year: number, extra: (c: Ctx) => boolean = () => true, minAge = 4): EventDef => ({
+export const needChild = (c: Ctx) => c.p.flags.has('ancestor') && c.p.childYears.length === 0
+export const y = (c: Ctx, a: number, b = a) => c.year >= a && c.year <= b
+export const hist = (id: string, year: number, extra: (c: Ctx) => boolean = () => true, minAge = 4): EventDef => ({
   id,
   once: true,
   tone: 'history',
@@ -21,10 +21,13 @@ const hist = (id: string, year: number, extra: (c: Ctx) => boolean = () => true,
   chance: () => 1,
 })
 
-function jobFor(c: Ctx): string {
+export function jobFor(c: Ctx): string {
   const p = c.p
   if (p.edu === 'uni') return c.r.pick(['job.teacher', 'job.doctor', 'job.engineer', 'job.agronomist'])
   if (p.edu === 'tech') return c.r.pick(['job.teacher', 'job.medic', 'job.accountant', 'job.mechanic'])
+  if (p.flags.has('craft') && c.r.chance(0.5)) return 'job.craft'
+  if (p.flags.has('tech') && c.year >= 1925 && c.r.chance(0.5)) return c.r.pick(['job.railway', 'job.mechanic'])
+  if (p.flags.has('horseman') && c.year >= 1930 && c.r.chance(0.4)) return 'job.horses'
   if (p.way === 'nomad' || p.way === 'seminomad') return c.year < 1930 ? 'job.herder' : 'job.kolkhoz'
   if (p.way === 'town') return c.r.pick(['job.worker', 'job.railway', 'job.worker'])
   if (c.year < 1930) return 'job.farmer'
@@ -33,7 +36,7 @@ function jobFor(c: Ctx): string {
 }
 
 /** Marriage ages: docs 7.6 (Kazakh women ~17, men ~25 before the war; after 1945 women 20–24, men 22–27). */
-function marryChance(c: Ctx): number {
+export function marryChance(c: Ctx): number {
   const a = c.age
   if (c.year >= 1946) return male(c) ? (a < 22 ? 0.05 : a <= 27 ? 0.25 : 0.15) : a < 19 ? 0.06 : a <= 24 ? 0.25 : 0.15
   if (kz(c)) return male(c) ? (a < 22 ? 0.03 : a <= 30 ? 0.2 : 0.12) : a < 16 ? 0 : a <= 19 ? 0.35 : 0.2
@@ -48,7 +51,7 @@ function birthChance(c: Ctx): number {
 }
 
 // ---------- choices ----------
-export const CHOICES: ChoiceDef[] = [
+export const CHOICES_BASE: ChoiceDef[] = [
   {
     id: 'school',
     when: c => c.age === 9 && home(c),
@@ -119,7 +122,7 @@ export const CHOICES: ChoiceDef[] = [
   },
   {
     id: 'homefront',
-    when: c => !male(c) && c.year === 1941 && c.age >= 16 && c.age <= 45 && home(c) && free(c) && c.p.group !== 'german',
+    when: c => !male(c) && c.year === 1941 && c.age >= 16 && c.age <= 45 && home(c) && free(c) && !has(c, 'student') && c.p.group !== 'german',
     options: [
       { id: 'kolkhoz', apply: c => set(c, 'homefront') },
       { id: 'factory', apply: c => ((c.p.way = 'town'), set(c, 'homefront', 'factory')) },
@@ -247,19 +250,6 @@ export const EVENTS_MAIN: EventDef[] = [
     apply: c => void (c.p.job = 'job.kolkhoz'),
   },
   {
-    id: 'marry',
-    once: true,
-    big: true,
-    tone: 'good',
-    when: c => !c.p.spouse && (male(c) ? c.age >= 19 && (c.age <= 40 || needChild(c)) : c.age >= 16 && (c.age <= 35 || needChild(c))) && free(c),
-    // An ancestor who is still single by 30 (women) / 34 (men) marries: they did have children.
-    chance: c => (needChild(c) && c.age >= (male(c) ? 34 : 30) ? 1 : marryChance(c) * (y(c, 1941, 1945) ? 0.35 : 1)),
-    apply: c => {
-      c.p.spouse = 'yes'
-      return { vars: { age: c.age } }
-    },
-  },
-  {
     id: 'child',
     tone: 'good',
     when: c =>
@@ -284,6 +274,12 @@ export const EVENTS_MAIN: EventDef[] = [
       if (p.children === 1 && !p.flags.has('first_child_logged')) {
         p.flags.add('first_child_logged')
         p.log.push({ year: c.year, age: c.age, key: 'child.first', tone: 'good', big: true })
+        return { silent: true }
+      }
+      if (c.r.chance(0.015)) {
+        p.children++
+        p.childYears.push(c.year)
+        p.log.push({ year: c.year, age: c.age, key: 'rare.twins', tone: 'good', big: true })
         return { silent: true }
       }
       return { key: 'child.more', vars: { n: p.children } }
@@ -350,17 +346,17 @@ export const EVENTS_MAIN: EventDef[] = [
     tone: 'history',
     when: c => c.year === 1934 && kz(c) && c.age >= 2,
     chance: () => 1,
-    apply: c => (set(c, 'famine'), { key: has(c, 'fled') ? 'famine.survived.abroad' : has(c, 'near_famine') ? 'famine.survived.near' : 'famine.survived' }),
+    apply: c => (set(c, 'famine'), { key: c.p.way === 'abroad' ? 'famine.survived.abroad' : has(c, 'near_famine') ? 'famine.survived.near' : 'famine.survived' }),
   },
   {
     id: 'flight.return',
     tone: 'good',
     big: true,
-    when: c => has(c, 'fled') && c.p.way === 'abroad' && c.year >= 1932 && c.year <= 1936,
+    when: c => has(c, 'fled') && c.p.way === 'abroad' && c.year >= 1933 && c.year <= 1937,
     chance: () => 0.1,
     apply: c => ((c.p.way = 'village'), set(c, 'returned')),
   },
-  { id: 'flight.stay', once: true, big: true, tone: 'calm', when: c => has(c, 'fled') && c.p.way === 'abroad' && c.year === 1937, chance: () => 1 },
+  { id: 'flight.stay', once: true, big: true, tone: 'calm', when: c => has(c, 'fled') && c.p.way === 'abroad' && c.year === 1938, chance: () => 1 },
   {
     id: 'famine.orphan',
     once: true,
@@ -384,7 +380,10 @@ export const EVENTS_MAIN: EventDef[] = [
       (male(c) ? 0.013 : 0.0015) *
       (c.p.edu === 'uni' || c.p.edu === 'tech' ? 3 : 1) *
       (has(c, 'returned') || has(c, 'fled1916') ? 2 : 1) *
-      (c.p.group === 'korean' || c.p.group === 'german' ? 2 : 1),
+      (c.p.group === 'korean' || c.p.group === 'german' ? 2 : 1) *
+      (has(c, 'official') ? 3 : 1) *
+      (has(c, 'madrasa') ? 2 : 1) *
+      (has(c, 'komsomol') ? 1.3 : 1),
     apply: c => {
       set(c, 'repressed_any')
       if (c.r.chance(0.2)) return { key: 'repressed.shot', die: 'shot' }
@@ -543,8 +542,16 @@ export const FLAVOR: EventDef[] = [
   fl('fl.jubilee', c => c.age >= 60 && c.age <= 80 && c.p.childYears.length >= 2 && c.p.grandchildren > 0 && c.year >= 1950, 0.12, 'good'),
 ]
 
+/** War risk by branch of service (model: the infantry carried the heaviest losses; cavalry was cut down in 1941–42). */
+function warFactor(c: Ctx): number {
+  if (has(c, 'artillery') || has(c, 'signal')) return 0.75
+  if (has(c, 'cavalry')) return c.year <= 1942 ? 1.25 : 0.9
+  if (has(c, 'rifle')) return 1.0
+  return 1
+}
+
 // ---------- yearly death risks ----------
-export const HAZARDS: Hazard[] = [
+export const HAZARDS_BASE: Hazard[] = [
   {
     id: 'base',
     q: c => baseQ(c.age, c.year, c.p.sex === 'm'),
@@ -605,7 +612,7 @@ export const HAZARDS: Hazard[] = [
     id: 'war',
     q: c => {
       if (!has(c, 'front')) return 0
-      const r = { 1941: 0.19, 1942: 0.21, 1943: 0.16, 1944: 0.12, 1945: 0.05 }[c.year] ?? 0
+      const r = ({ 1941: 0.19, 1942: 0.21, 1943: 0.16, 1944: 0.12, 1945: 0.05 }[c.year] ?? 0) * warFactor(c)
       return has(c, 'nurse') ? r * 0.3 : r
     },
   },
@@ -616,4 +623,4 @@ export const HAZARDS: Hazard[] = [
   { id: 'shot', q: () => 0 },
 ]
 
-export const EVENTS: EventDef[] = [...EVENTS_MAIN, ...FLAVOR]
+export const EVENTS_BASE: EventDef[] = [...EVENTS_MAIN, ...FLAVOR]

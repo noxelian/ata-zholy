@@ -105,3 +105,15 @@ a { color: var(--gold); }
 .shared-banner { text-align: center; background: var(--bg2); border-radius: 14px; padding: 12px; margin: 12px 0; color: var(--muted); }
 
 body.has-sheet .controls { display: none; }
+
+.how { list-style: none; padding: 0; margin: 6px 0 4px; display: grid; gap: 8px; }
+.how li { display: flex; gap: 12px; align-items: center; background: var(--bg2); border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+.how b { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--gold); color: var(--bg); display: grid; place-items: center; }
+.forks { display: grid; gap: 10px; margin: 8px 0 6px; }
+.fork { background: var(--bg2); border-radius: 14px; padding: 12px 14px; border-left: 3px solid var(--gold-dim); }
+.fork .y { font-size: 13px; color: var(--muted); }
+.fork .chosen { margin: 2px 0 6px; font-weight: 600; }
+.fork ul { margin: 0 0 6px; padding-left: 18px; color: var(--muted); font-size: 15px; }
+.fork ul b { color: var(--text); font-weight: 600; }
+.link-btn { color: var(--gold); font-weight: 600; font-size: 15px; padding: 4px 0; }
+.intro2 { color: var(--muted); text-align: center; font-size: 15px; margin: 12px 0 0; }

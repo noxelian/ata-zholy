@@ -71,9 +71,15 @@ export interface EventDef {
 export interface ChoiceDef {
   id: string
   when: (c: Ctx) => boolean
+  /** Button and outcome texts depend on the question variant (key suffix after `chq.<id>.`). */
+  variants?: boolean
   /** Question text key; default `chq.<id>`. */
   q?: (c: Ctx) => string
   options: { id: string; apply: (c: Ctx) => void }[]
+  /** Offered only with this probability per year (rolled the same way live and on replay). Default: always. */
+  chance?: (c: Ctx) => number
+  /** Line about what is at stake, key; default `chs.<id>` if present. */
+  stake?: (c: Ctx) => string
   /** How a typical person of that time chose (used by the statistics run). */
   typical: (c: Ctx) => number[]
 }

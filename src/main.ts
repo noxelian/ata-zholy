@@ -1,5 +1,7 @@
 import './style.css'
-import { Life, decodeLife, encodeLife, type LifeMode } from './sim/engine'
+import { Life, decodeLife, encodeLife, whatIf, type LifeMode } from './sim/engine'
+import { CHOICES } from './sim/content'
+import type { ChoiceDef } from './sim/types'
 import { randomSeed } from './sim/rng'
 import type { Group, Lang, LogEntry, Person, Step } from './sim/types'
 import { GROUPS } from './sim/birth'
@@ -68,10 +70,15 @@ function start() {
       <h1>${esc(t('title'))}</h1>
       <div class="sub">${esc(t('sub'))}</div>
       <p>${esc(t('intro1'))}</p>
-      <p>${esc(t('intro2'))}</p>
     </div>
     ${code ? `<div class="shared-banner">${esc(t('sharedBanner'))}</div><button class="ghost-btn" id="watch">${esc(t('watch'))}</button>` : ''}
     <button class="big-btn" id="born">${esc(t('born'))}</button>
+    <ol class="how">
+      <li><b>1</b><span>${esc(t('how.step1'))}</span></li>
+      <li><b>2</b><span>${esc(t('how.step2'))}</span></li>
+      <li><b>3</b><span>${esc(t('how.step3'))}</span></li>
+    </ol>
+    <p class="intro2">${esc(t('intro2'))}</p>
     <details class="settings"><summary>${esc(t('settings'))}</summary>
       <div style="text-align:center;margin-top:6px">${esc(t('whose'))}</div>
       <div class="chips">${chips}</div>
@@ -114,7 +121,7 @@ function start() {
 // ---------- Life screen ----------
 const MARKS = [1916, 1921, 1932, 1937, 1941, 1954, 1986, 1991]
 
-function play(life: Life, group: Group | undefined, replay: boolean) {
+function play(life: Life, group: Group | undefined, replay: boolean, rewind = false) {
   const p = life.p
   const seed = p.seed
   app.innerHTML = ''
@@ -128,7 +135,8 @@ function play(life: Life, group: Group | undefined, replay: boolean) {
   head.querySelector('.name')!.textContent = name
 
   let paused = false
-  let fast = replay
+  // Going back to a choice: run fast through the known part of the life, slow down at the question.
+  let fast = replay || rewind
   let timer = 0
   const pp = controls.querySelector<HTMLButtonElement>('#pp')!
   const ff = controls.querySelector<HTMLButtonElement>('#ff')!
@@ -161,7 +169,8 @@ function play(life: Life, group: Group | undefined, replay: boolean) {
     for (const e of entries) {
       const { text, src } = ev(lang, e.key, p.sex, { ...e.vars, name })
       const cls = ['entry', e.tone, e.big ? 'big' : ''].join(' ')
-      box.append(h(`<div class="${cls}">${esc(text)}${src ? `<span class="src">${esc(t('sources'))}: ${esc(src)}</span>` : ''}</div>`))
+      const share = typeof e.vars?.share === 'number' ? `<span class="src">${esc(t('shareLine', { n: e.vars.share }))}</span>` : ''
+      box.append(h(`<div class="${cls}">${esc(text)}${src ? `<span class="src">${esc(t('sources'))}: ${esc(src)}</span>` : ''}${share}</div>`))
     }
     feed.append(box)
     box.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -180,6 +189,11 @@ function play(life: Life, group: Group | undefined, replay: boolean) {
       return
     }
     if (s.kind === 'choice') {
+      if (rewind) {
+        rewind = false
+        fast = false
+        syncBtns()
+      }
       askChoice(life, name, s, i => handle(life.choose(i)))
       return
     }
@@ -198,7 +212,8 @@ function play(life: Life, group: Group | undefined, replay: boolean) {
   addYear(first.year, first.entries)
   // A choice can come in the very first year (born in 1930 or 1932).
   const goOn = () => (first.kind === 'choice' ? askChoice(life, name, first, i => handle(life.choose(i))) : schedule(500))
-  if (replay) {
+  if (replay || rewind) {
+    if (rewind) feed.prepend(h(`<div class="shared-banner">${esc(t('rewindBanner'))}</div>`))
     goOn()
     return
   }
@@ -217,14 +232,27 @@ function play(life: Life, group: Group | undefined, replay: boolean) {
   void seed
 }
 
+/** The question variant of a choice (e.g. 'aul' for chq.childhood.aul), '' if none. */
+function variantOf(ch: ChoiceDef, p: Person, year: number, age: number): string {
+  if (!ch.variants || !ch.q) return ''
+  const qk = ch.q({ p, year, age } as never)
+  return qk.startsWith(`chq.${ch.id}.`) ? qk.slice(`chq.${ch.id}.`.length) : ''
+}
+
+/** Button or hint text of an option; '' for a missing hint. */
+function optText(ch: ChoiceDef, opt: string, kind: 'btn' | 'hint', variant: string, sex: Person['sex'], name: string): string {
+  const key = `ch.${ch.id}.${opt}.${kind}${variant ? '.' + variant : ''}`
+  const text = ev(lang, key, sex, { name }).text
+  return text === key ? '' : text
+}
+
 function askChoice(life: Life, name: string, s: Extract<Step, { kind: 'choice' }>, done: (i: number) => void) {
   const p = life.p
   const ch = s.choice
   const opts = ch.options
     .map((o, i) => {
-      const btn = ev(lang, `ch.${ch.id}.${o.id}.btn`, p.sex, { name }).text
-      const hint = ev(lang, `ch.${ch.id}.${o.id}.hint`, p.sex, { name })
-      const hintText = hint.text === `ch.${ch.id}.${o.id}.hint` ? '' : hint.text
+      const btn = optText(ch, o.id, 'btn', variantOf(ch, p, s.year, s.age), p.sex, name)
+      const hintText = optText(ch, o.id, 'hint', variantOf(ch, p, s.year, s.age), p.sex, name)
       return `<button class="opt" data-i="${i}">${esc(btn)}${hintText ? `<small>${esc(hintText)}</small>` : ''}</button>`
     })
     .join('')
@@ -258,6 +286,9 @@ async function end(life: Life, group: Group | undefined) {
     <img class="card-img" alt="" />
     <button class="big-btn" id="share">${esc(t('share'))}</button>
     <div class="row2"><button class="ghost-btn" id="dl">${esc(t('download'))}</button><button class="ghost-btn" id="link">${esc(t('copyLink'))}</button></div>
+    <h2 style="margin-top:28px">${esc(t('forksTitle'))}</h2>
+    <p class="lead">${esc(t('forksNote'))}</p>
+    <div class="forks"></div>
     <p class="lead" style="margin-top:14px">${esc(t('tellFamily'))}</p>
     <button class="ghost-btn" id="again">${esc(t('again'))}</button>
   </div>`)
@@ -285,6 +316,42 @@ async function end(life: Life, group: Group | undefined) {
       prompt('', url)
     }
   }
+  // Forks: every choice of this life, what the other options would have led to, and a way back.
+  const forksBox = el.querySelector('.forks')!
+  for (const e of p.log.filter(x => typeof x.vars?.k === 'number')) {
+    const def = CHOICES.find(c => c.id === e.vars!.ch)
+    if (!def) continue
+    const k = Number(e.vars!.k)
+    const chosen = Number(e.vars!.opt)
+    const variant = e.key.split('.')[3] ?? ''
+    const alts = def.options
+      .map((o, i) => ({ o, i }))
+      .filter(x => x.i !== chosen)
+      .map(({ o, i }) => {
+        const alt = whatIf(p.seed, group, life.mode, life.choices, k, i)
+        // The first big moments of the other life that did not happen in this one, then its end.
+        const mine = new Set(p.log.map(x => x.key))
+        const moments = alt.log
+          .filter(x => x.big && x.year >= e.year && !mine.has(x.key) && !x.key.startsWith('death.'))
+          .map(x => ({ year: x.year, text: ev(lang, 'card.' + x.key, alt.sex, { ...x.vars, name, age: x.age }).text }))
+          .filter(x => !x.text.startsWith('card.'))
+          .slice(0, 2)
+          .map(x => `${x.year} — ${x.text}`)
+        const fate = ev(lang, 'card.death.' + alt.deathCause, alt.sex, { age: alt.deathAge ?? '' }).text
+        const same = !moments.length && alt.deathYear === p.deathYear && alt.deathCause === p.deathCause
+        const story = same ? t('sameLife') : [...moments, `${alt.deathYear} — ${fate}`].join('; ')
+        return `<li>${esc(t('ifChose', { opt: optText(def, o.id, 'btn', variant, p.sex, name) }))} <b>${esc(story)}</b></li>`
+      })
+      .join('')
+    const box = h(`<div class="fork"><div class="y">${e.year} · ${e.age} ${esc(t('age'))}</div>
+      <div class="chosen">${esc(ev(lang, e.key, p.sex, { ...e.vars, name }).text)}</div>
+      <ul>${alts}</ul><button class="link-btn">${esc(t('goBack'))}</button></div>`)
+    box.querySelector<HTMLButtonElement>('.link-btn')!.onclick = () =>
+      play(new Life({ seed: p.seed, group, mode: life.mode, choices: life.choices.slice(0, k) }), group, false, true)
+    forksBox.append(box)
+  }
+  if (!forksBox.children.length) forksBox.append(h(`<p class="lead">${esc(t('noForks'))}</p>`))
+
   el.querySelector<HTMLButtonElement>('#again')!.onclick = () => {
     history.replaceState(null, '', location.pathname)
     start()

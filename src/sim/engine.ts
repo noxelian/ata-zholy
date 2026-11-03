@@ -1,7 +1,7 @@
 import { Rng } from './rng'
 import type { ChoiceDef, Ctx, Group, LogEntry, Person, Step } from './types'
 import { GROUPS, born, type BirthFacts } from './birth'
-import { CHOICES, EVENTS, HAZARDS } from './events'
+import { CHOICES, EVENTS, HAZARDS } from './content'
 
 export const ENGINE_VERSION = 1
 const MAX_AGE = 104
@@ -38,6 +38,8 @@ export class Life {
   private done = new Set<string>()
   private started = false
   private yearStart = 0
+  /** Choices already looked at this year: each is checked (and its chance rolled) at most once a year. */
+  private tried = new Set<string>()
   readonly mode: LifeMode
 
   constructor(o: LifeOptions) {
@@ -74,6 +76,7 @@ export class Life {
     }
     // The birth lines are written by born(); show them with the first year.
     this.yearStart = p.year === p.birthYear ? 0 : p.log.length
+    this.tried.clear()
     return this.runChoices() ?? this.finishYear()
   }
 
@@ -89,7 +92,9 @@ export class Life {
   private runChoices(): Step | null {
     const p = this.p
     for (const ch of CHOICES) {
-      if (this.done.has(ch.id) || !ch.when(this.ctx())) continue
+      if (this.done.has(ch.id) || this.tried.has(ch.id) || !ch.when(this.ctx())) continue
+      this.tried.add(ch.id)
+      if (ch.chance && !this.r.chance(ch.chance(this.ctx()))) continue
       this.done.add(ch.id)
       let pick: number | undefined
       if (this.replay.length) pick = this.replay.shift()
@@ -108,8 +113,14 @@ export class Life {
 
   private applyChoice(ch: ChoiceDef, i: number) {
     const opt = ch.options[Math.max(0, Math.min(ch.options.length - 1, i))]
-    this.choices.push(ch.options.indexOf(opt))
-    this.log(`ch.${ch.id}.${opt.id}`, 'calm')
+    const idx = ch.options.indexOf(opt)
+    const w = ch.typical(this.ctx())
+    const share = Math.round((100 * (w[idx] ?? 0)) / Math.max(1e-9, w.reduce((a, b) => a + b, 0)))
+    this.choices.push(idx)
+    // k: which choice of the life this is (for "go back to this choice"); share: how many people chose so (model).
+    const qk = ch.q?.(this.ctx()) ?? ''
+    const variant = ch.variants && qk.startsWith(`chq.${ch.id}.`) ? '.' + qk.slice(`chq.${ch.id}.`.length) : ''
+    this.log(`ch.${ch.id}.${opt.id}${variant}`, 'calm', { k: this.choices.length - 1, share, ch: ch.id, opt: idx })
     opt.apply(this.ctx())
   }
 
@@ -209,4 +220,12 @@ export function decodeLife(code: string): { seed: number; group?: Group; choices
   if (g && !(GROUPS as string[]).includes(g)) return null
   if (ch && !/^[0-2]*$/.test(ch)) return null
   return { seed, group: (g || undefined) as Group | undefined, choices: (ch ?? '').split('').filter(Boolean).map(Number), mode: m === 'a' ? 'any' : 'ancestor' }
+}
+
+/**
+ * "What if": the same life up to choice k, then option `alt`, then typical choices of the time.
+ * The world is the same seed, so everything before the choice repeats exactly.
+ */
+export function whatIf(seed: number, group: Group | undefined, mode: LifeMode, choices: number[], k: number, alt: number): Person {
+  return new Life({ seed, group, mode, choices: [...choices.slice(0, k), alt], auto: true }).runToEnd()
 }
