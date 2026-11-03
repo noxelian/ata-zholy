@@ -130,7 +130,7 @@ test('earlier eras make sense', { timeout: 180000 }, () => {
   expect(bad.slice(0, 20)).toEqual([])
 })
 
-test('captives of 1723 get no choices until freed', () => {
+test('captives (XV–XIX) get no choices until freed', () => {
   for (const code of ['3.r..02..xviii', '3.eoi..002..xviii', '3.4kpkgd..10100..xv', '3.o2hrm1..0002..xix']) {
     const d = decodeLife(code)!
     const life = new Life({ seed: d.seed, choices: d.choices, mode: d.mode, era: d.era })

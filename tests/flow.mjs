@@ -26,7 +26,7 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
       let shotChoice = bname === 'chrome' && !group
       const t0 = Date.now()
       while (Date.now() - t0 < 240000) {
-        if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff')
+        if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff', { timeout: 1000 }).catch(() => {})
         const opts = await pg.$$('.opt')
         if (opts.length) {
           if (shotChoice) {
@@ -90,7 +90,7 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
     await pg.click('#go')
     for (let t0 = Date.now(); Date.now() - t0 < 240000; ) {
       // "Faster" is hidden while a question is open (a choice can come in the very first year).
-      if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff')
+      if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff', { timeout: 1000 }).catch(() => {})
       const o = await pg.$$('.opt')
       if (o.length) await o[Math.floor(Math.random() * o.length)].click()
       if (await pg.$('.card-img[src]')) break
