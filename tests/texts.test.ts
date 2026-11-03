@@ -1,15 +1,14 @@
 import { expect, test } from 'vitest'
 import { Life } from '../src/sim/engine'
+import { ERA_IDS, ERAS } from '../src/sim/eras'
 import { ev } from '../src/i18n/texts'
-import { EV_RU } from '../src/i18n/ev.ru'
-import { EV_KZ } from '../src/i18n/ev.kz'
-import { EV_EN } from '../src/i18n/ev.en'
+import { TABLES } from '../src/i18n/texts'
 import { CHOICES } from '../src/sim/content'
 import { GROUPS } from '../src/sim/birth'
 import type { Lang } from '../src/sim/types'
 
 const LANGS: Lang[] = ['ru', 'kz', 'en']
-const TABLES = { ru: EV_RU, kz: EV_KZ, en: EV_EN }
+const EV_RU = TABLES.ru
 
 test('every key in Russian exists in Kazakh and English', () => {
   const ru = Object.keys(EV_RU)
@@ -22,9 +21,11 @@ test('every key in Russian exists in Kazakh and English', () => {
 test('every text a life can show is translated and fully filled in', { timeout: 120000 }, () => {
   const bad = new Set<string>()
   const keys = new Set<string>()
-  for (let i = 1; i <= 3000; i++) {
+  for (let i = 1; i <= 4000; i++) {
     const group = i % 3 === 0 ? GROUPS[i % GROUPS.length] : undefined
-    const life = new Life({ seed: i * 104729, group, auto: true, mode: i % 2 ? 'ancestor' : 'any' })
+    // Every era, in turn; peoples can be chosen only in the XX century.
+    const era = ERA_IDS[i % ERA_IDS.length]
+    const life = new Life({ seed: i * 104729, group: era === 'xx' ? group : undefined, era, auto: true, mode: i % 2 ? 'ancestor' : 'any' })
     const p = life.runToEnd()
     for (const e of p.log) {
       keys.add(e.key)
@@ -38,12 +39,22 @@ test('every text a life can show is translated and fully filled in', { timeout: 
     }
   }
   // Choice buttons and questions.
-  for (const ch of CHOICES) if (!ch.variants) for (const o of ch.options) keys.add(`ch.${ch.id}.${o.id}.btn`)
+  const ALL_CHOICES = [...new Set([...CHOICES, ...ERA_IDS.flatMap(e => ERAS[e]!.choices)])]
+  for (const ch of ALL_CHOICES) if (!ch.variants) for (const o of ch.options) keys.add(`ch.${ch.id}.${o.id}.btn`)
   // Choices with variants: every variant seen in lives needs buttons for every option.
   for (const k of [...keys]) {
-    const [pre, id, , variant] = k.split('.')
-    const ch = CHOICES.find(c => c.id === id)
-    if (pre === 'ch' && ch?.variants && variant) for (const o of ch.options) keys.add(`ch.${id}.${o.id}.btn.${variant}`)
+    if (!k.startsWith('ch.')) continue
+    // Choice ids may contain dots: find the choice whose `ch.<id>.<option>.` prefix fits, the rest is the variant.
+    for (const ch of ALL_CHOICES) {
+      if (!ch.variants) continue
+      for (const o of ch.options) {
+        const pre = `ch.${ch.id}.${o.id}.`
+        if (k.startsWith(pre) && !k.endsWith('.btn') && !k.includes('.btn.') && !k.includes('.hint')) {
+          const variant = k.slice(pre.length)
+          for (const o2 of ch.options) keys.add(`ch.${ch.id}.${o2.id}.btn.${variant}`)
+        }
+      }
+    }
   }
   for (const lang of LANGS) for (const k of keys) {
     if (k.startsWith('card.')) continue

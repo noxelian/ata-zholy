@@ -5,7 +5,7 @@ import { BIRTH } from './data'
 
 export const GROUPS: Group[] = ['kazakh', 'russian', 'ukrainian', 'german', 'tatar', 'uzbek', 'uighur', 'korean']
 
-export type BirthFacts = Pick<Person, 'sex' | 'group' | 'region' | 'birthYear'> & { way: Way }
+export type BirthFacts = Pick<Person, 'sex' | 'group' | 'region' | 'birthYear'> & { way: Way; era?: Person['era'] }
 
 function birthYear(r: Rng): number {
   return Number(r.weighted(BIRTH.yearWeights))
@@ -20,6 +20,7 @@ export function born(r: Rng, seed: number, forceGroup?: Group, like?: BirthFacts
   const way: Way = like?.way ?? r.weighted(BIRTH.way(group, region, year))
   const p: Person = {
     seed,
+    era: 'xx',
     sex,
     group,
     region,

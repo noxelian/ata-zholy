@@ -1,10 +1,10 @@
 import './style.css'
 import { ENGINE_VERSION, Life, decodeLife, encodeLife, whatIf, type LifeMode } from './sim/engine'
-import { CHOICES } from './sim/content'
 import type { ChoiceDef } from './sim/types'
 import { randomSeed } from './sim/rng'
 import type { Group, Lang, LogEntry, Person, Step } from './sim/types'
-import { GROUPS } from './sim/birth'
+import { ERA_IDS, eraOf } from './sim/eras'
+import type { EraId } from './sim/types'
 import { nameOf } from './sim/names'
 import { UI, detectLang, fmt } from './i18n/ui'
 import { ev, word } from './i18n/texts'
@@ -14,6 +14,7 @@ import { drawCard } from './card'
 const app = document.getElementById('app')!
 let lang: Lang = detectLang()
 let groupPref: Group | undefined
+let eraPref: EraId = 'xx'
 let mode: LifeMode = 'ancestor'
 const t = (k: string, v?: Record<string, string | number>) => fmt(UI[lang][k] ?? UI.ru[k] ?? k, v)
 
@@ -62,16 +63,22 @@ function start() {
   const langs = (['kz', 'ru', 'en'] as Lang[])
     .map(l => `<button data-l="${l}" class="${l === lang ? 'on' : ''}">${{ kz: 'ҚАЗ', ru: 'РУС', en: 'ENG' }[l]}</button>`)
     .join('')
+  const eraGroups = eraOf(eraPref).groups
+  if (groupPref && !eraGroups.includes(groupPref)) groupPref = undefined
+  const eraChips = ERA_IDS.length > 1
+    ? `<div class="chips eras">${ERA_IDS.map(e => `<button data-e="${e}" class="${eraPref === e ? 'on' : ''}">${esc(t('era.' + e))}</button>`).join('')}</div>`
+    : ''
   const chips = [`<button data-g="" class="${!groupPref ? 'on' : ''}">${esc(t('random'))}</button>`]
-    .concat(GROUPS.map(g => `<button data-g="${g}" class="${groupPref === g ? 'on' : ''}">${esc(word(lang, 'grp.' + g))}</button>`))
+    .concat(eraGroups.map(g => `<button data-g="${g}" class="${groupPref === g ? 'on' : ''}">${esc(word(lang, 'grp.' + g))}</button>`))
     .join('')
   const el = h(`<div class="wrap">
     <div class="top-langs">${langs}</div>
     <div class="orn"></div>
     <div class="hero">
       <h1>${esc(t('title'))}</h1>
-      <div class="sub">${esc(t('sub'))}</div>
-      <p>${esc(t('intro1'))}</p>
+      <div class="sub">${esc(t(eraPref === 'xx' ? 'sub' : 'subOld'))}</div>
+      ${eraChips}
+      <p>${esc(t('intro1.' + eraPref))}</p>
     </div>
     ${oldLink ? `<div class="shared-banner">${esc(t('oldLink'))}</div>` : ''}
     ${code ? `<div class="shared-banner">${esc(t('sharedBanner'))}</div><button class="ghost-btn" id="watch">${esc(t('watch'))}</button>` : ''}
@@ -81,10 +88,10 @@ function start() {
       <li><b>2</b><span>${esc(t('how.step2'))}</span></li>
       <li><b>3</b><span>${esc(t('how.step3'))}</span></li>
     </ol>
-    <p class="intro2">${esc(t('intro2'))}</p>
+    ${eraPref === 'xx' ? `<p class="intro2">${esc(t('intro2'))}</p>` : ''}
     <details class="settings"><summary>${esc(t('settings'))}</summary>
-      <div style="text-align:center;margin-top:6px">${esc(t('whose'))}</div>
-      <div class="chips">${chips}</div>
+      ${eraGroups.length ? `<div style="text-align:center;margin-top:6px">${esc(t('whose'))}</div>
+      <div class="chips">${chips}</div>` : ''}
       <div style="text-align:center;margin-top:12px">${esc(t('modeTitle'))}</div>
       <div class="chips"><button data-m="ancestor" class="${mode === 'ancestor' ? 'on' : ''}">${esc(t('modeAncestor'))}</button><button data-m="any" class="${mode === 'any' ? 'on' : ''}">${esc(t('modeAny'))}</button></div>
     </details>
@@ -106,6 +113,7 @@ function start() {
         el.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('on', x === b))
       }),
   )
+  el.querySelectorAll<HTMLButtonElement>('[data-e]').forEach(b => (b.onclick = () => ((eraPref = b.dataset.e as EraId), start())))
   el.querySelectorAll<HTMLButtonElement>('[data-m]').forEach(
     b =>
       (b.onclick = () => {
@@ -115,22 +123,26 @@ function start() {
   )
   el.querySelector<HTMLButtonElement>('#born')!.onclick = () => {
     history.replaceState(null, '', location.pathname)
-    play(new Life({ seed: randomSeed(), group: groupPref, mode }), groupPref, false)
+    play(new Life({ seed: randomSeed(), group: groupPref, mode, era: eraPref }), groupPref, false)
   }
   const w = el.querySelector<HTMLButtonElement>('#watch')
-  if (w && code) w.onclick = () => play(new Life({ seed: code.seed, group: code.group, choices: code.choices, mode: code.mode }), code.group, true)
+  if (w && code) w.onclick = () => play(new Life({ seed: code.seed, group: code.group, choices: code.choices, mode: code.mode, era: code.era }), code.group, true)
 }
 
 // ---------- Life screen ----------
-const MARKS = [1916, 1921, 1932, 1937, 1941, 1954, 1986, 1991]
 
 function play(life: Life, group: Group | undefined, replay: boolean, rewind = false) {
   const p = life.p
+  const [from, to] = life.era.span
+  /** Text key prefix of the era ('e18.' etc., '' for the XX century). */
+  const pre = life.era.prefix ? life.era.prefix + '.' : ''
+  /** Position of a year on the life bar, in percent. */
+  const pos = (yr: number) => Math.max(0, Math.min(100, (100 * (yr - from)) / (to - from)))
   const seed = p.seed
   app.innerHTML = ''
   window.scrollTo(0, 0)
   const head = h(`<div class="life-head"><div class="row"><span class="name"></span><span class="age"></span></div>
-    <div class="century"><div class="fill"></div>${MARKS.map(y => `<div class="mark" style="left:${y - 1900}%"></div>`).join('')}<div class="me"></div></div></div>`)
+    <div class="century"><div class="fill"></div>${life.era.marks.map(y => `<div class="mark" style="left:${pos(y)}%"></div>`).join('')}<div class="me"></div></div></div>`)
   const feed = h(`<div class="feed"></div>`)
   const controls = h(`<div class="controls"><button id="pp"></button><button id="ff"></button></div>`)
   app.append(head, feed, controls)
@@ -161,7 +173,7 @@ function play(life: Life, group: Group | undefined, replay: boolean, rewind = fa
 
   const updateHead = () => {
     head.querySelector('.age')!.innerHTML = `${p.year} · <b>${p.age}</b> ${esc(t('age'))}`
-    const x = Math.max(0, Math.min(100, p.year - 1900))
+    const x = pos(p.year)
     ;(head.querySelector('.fill') as HTMLElement).style.width = `${x}%`
     ;(head.querySelector('.me') as HTMLElement).style.left = `${x}%`
   }
@@ -223,7 +235,7 @@ function play(life: Life, group: Group | undefined, replay: boolean, rewind = fa
   const st = peerStats(p, 400)
   const sheet = h(`<div class="sheet-bg"><div class="sheet">
     <h2>${esc(t('bornTitle', { name, born: t(p.sex === 'm' ? 'bornM' : 'bornF') }))}</h2>
-    <p>${esc(ev(lang, 'birth.where', p.sex, { year: p.birthYear, region: 'reg.' + p.region, way: 'way.' + p.wayAtBirth, grp: 'grpof.' + p.group }).text)}</p>
+    <p>${esc(ev(lang, pre + 'birth.where', p.sex, { year: p.birthYear, region: pre + 'reg.' + p.region, way: 'way.' + p.wayAtBirth, grp: 'grpof.' + p.group }).text)}</p>
     <p class="stat">${esc(ev(lang, 'birth.stat', p.sex, { n5: st.survive5, n60: st.survive60 }).text)}</p>
     <button class="big-btn" id="go">${esc(t('keep'))}</button>
   </div></div>`)
@@ -276,7 +288,7 @@ function askChoice(life: Life, name: string, s: Extract<Step, { kind: 'choice' }
 // ---------- End screen ----------
 async function end(life: Life, group: Group | undefined) {
   const p = life.p
-  const code = encodeLife(p.seed, group, life.choices, life.mode)
+  const code = encodeLife(p.seed, group, life.choices, life.mode, p.era)
   const url = `${location.origin}${location.pathname}?l=${code}`
   const st = peerStats(p, 1500)
   const name = nameOf(p, lang)
@@ -322,16 +334,18 @@ async function end(life: Life, group: Group | undefined) {
   // Forks: every choice of this life, what the other options would have led to, and a way back.
   const forksBox = el.querySelector('.forks')!
   for (const e of p.log.filter(x => typeof x.vars?.k === 'number')) {
-    const def = CHOICES.find(c => c.id === e.vars!.ch)
+    const def = life.era.choices.find(c => c.id === e.vars!.ch)
     if (!def) continue
     const k = Number(e.vars!.k)
     const chosen = Number(e.vars!.opt)
-    const variant = e.key.split('.')[3] ?? ''
+    // Choice ids may contain dots (e18.flight): the variant is whatever follows `ch.<id>.<option>.`.
+    const optPrefix = `ch.${def.id}.${def.options[chosen]?.id}`
+    const variant = e.key.length > optPrefix.length ? e.key.slice(optPrefix.length + 1) : ''
     const alts = def.options
       .map((o, i) => ({ o, i }))
       .filter(x => x.i !== chosen)
       .map(({ o, i }) => {
-        const alt = whatIf(p.seed, group, life.mode, life.choices, k, i)
+        const alt = whatIf(p.seed, group, life.mode, life.choices, k, i, p.era)
         // The first big moments of the other life that did not happen in this one, then its end.
         const mine = new Set(p.log.map(x => x.key))
         const moments = alt.log
@@ -350,7 +364,7 @@ async function end(life: Life, group: Group | undefined) {
       <div class="chosen">${esc(ev(lang, e.key, p.sex, { ...e.vars, name }).text)}</div>
       <ul>${alts}</ul><button class="link-btn">${esc(t('goBack'))}</button></div>`)
     box.querySelector<HTMLButtonElement>('.link-btn')!.onclick = () =>
-      play(new Life({ seed: p.seed, group, mode: life.mode, choices: life.choices.slice(0, k) }), group, false, true)
+      play(new Life({ seed: p.seed, group, mode: life.mode, era: p.era, choices: life.choices.slice(0, k) }), group, false, true)
     forksBox.append(box)
   }
   if (!forksBox.children.length) forksBox.append(h(`<p class="lead">${esc(t('noForks'))}</p>`))

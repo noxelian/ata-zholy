@@ -3,6 +3,7 @@ import type { PeerStats } from './sim/stats'
 import { UI, fmt } from './i18n/ui'
 import { ev } from './i18n/texts'
 import { nameOf } from './sim/names'
+import { eraOf } from './sim/eras'
 
 const W = 1080
 const H = 1350
@@ -90,7 +91,7 @@ export async function drawCard(p: Person, lang: Lang, st: PeerStats, url: string
   g.textAlign = 'center'
   g.fillStyle = GOLD
   g.font = '600 34px "Noto Sans", sans-serif'
-  g.fillText(ui(p.sex === 'm' ? 'cardHeadM' : 'cardHeadF'), W / 2, 200)
+  g.fillText(p.era === 'xx' ? ui(p.sex === 'm' ? 'cardHeadM' : 'cardHeadF') : ui(p.sex === 'm' ? 'cardHeadOldM' : 'cardHeadOldF', { era: ui('era.' + p.era) }), W / 2, 200)
 
   g.fillStyle = CREAM
   g.font = '700 92px "Noto Serif", serif'
@@ -107,7 +108,8 @@ export async function drawCard(p: Person, lang: Lang, st: PeerStats, url: string
 
   g.font = '400 34px "Noto Sans", sans-serif'
   g.fillStyle = MUTED
-  const origin = ev(lang, p.wayAtBirth === 'abroad' ? `card.origin.abroad.${p.group}` : 'card.origin', p.sex, { region: 'reg.' + p.region, way: 'wayc.' + p.wayAtBirth, grp: 'grpof.' + p.group }).text
+  const pre = p.era === 'xx' ? '' : eraOf(p.era).prefix + '.'
+  const origin = ev(lang, p.wayAtBirth === 'abroad' ? `card.origin.abroad.${p.group}` : 'card.origin', p.sex, { region: (p.log[0]?.vars?.region as string | undefined) ?? pre + 'reg.' + p.region, way: 'wayc.' + p.wayAtBirth, grp: 'grpof.' + p.group }).text
   let oy = 440
   for (const l of wrap(g, origin, W - 200)) {
     g.fillText(l, W / 2, oy)

@@ -1,7 +1,7 @@
 import { Rng } from './rng'
-import type { ChoiceDef, Ctx, Group, LogEntry, Person, Step } from './types'
-import { GROUPS, born, type BirthFacts } from './birth'
-import { CHOICES, EVENTS, HAZARDS } from './content'
+import type { ChoiceDef, Ctx, EraId, Group, LogEntry, Person, Step } from './types'
+import { type BirthFacts } from './birth'
+import { ERA_IDS, eraOf, type Era } from './eras'
 
 /** Bumped whenever a seed + choices would give a different life. Old links show a notice. */
 export const ENGINE_VERSION = 2
@@ -22,6 +22,8 @@ export interface LifeOptions {
    * deaths before that become close calls. 'any': any child of the time, can die at any age.
    */
   mode?: LifeMode
+  /** Historical era; XX century by default. */
+  era?: EraId
 }
 export type LifeMode = 'ancestor' | 'any'
 
@@ -42,13 +44,16 @@ export class Life {
   /** Choices already looked at this year: each is checked (and its chance rolled) at most once a year. */
   private tried = new Set<string>()
   readonly mode: LifeMode
+  readonly era: Era
 
   constructor(o: LifeOptions) {
     this.r = new Rng(o.seed)
     this.replay = o.choices ? [...o.choices] : []
     this.auto = !!o.auto
     this.mode = o.mode ?? 'ancestor'
-    this.p = born(this.r, o.seed, o.group, o.like)
+    this.era = eraOf(o.era ?? o.like?.era)
+    this.p = this.era.born(this.r, o.seed, o.group, o.like)
+    this.p.era = this.era.id
     if (this.mode === 'ancestor') this.p.flags.add('ancestor')
   }
 
@@ -92,7 +97,7 @@ export class Life {
   /** Choices come first in a year: they change what can happen. Returns a step if the player must choose. */
   private runChoices(): Step | null {
     const p = this.p
-    for (const ch of CHOICES) {
+    for (const ch of this.era.choices) {
       // Each choice is looked at once a year, in list order, whether or not it fits: live play and replays
       // then see exactly the same questions even when an answer changes what fits later in the same year.
       if (this.done.has(ch.id) || this.tried.has(ch.id)) continue
@@ -131,7 +136,7 @@ export class Life {
   private finishYear(): Step {
     const p = this.p
     const start = this.yearStart
-    for (const ev of EVENTS) {
+    for (const ev of this.era.events) {
       if (ev.once && this.done.has(ev.id)) continue
       const c = this.ctx()
       if (!ev.when(c)) continue
@@ -152,7 +157,7 @@ export class Life {
   private deathRoll() {
     const p = this.p
     const c = this.ctx()
-    const risks = HAZARDS.map(h => ({ id: h.id, q: Math.max(0, Math.min(1, h.q(c))) })).filter(h => h.q > 0)
+    const risks = this.era.hazards.map(h => ({ id: h.id, q: Math.max(0, Math.min(1, h.q(c))) })).filter(h => h.q > 0)
     let survive = 1
     for (const h of risks) survive *= 1 - h.q
     const qTotal = p.age >= MAX_AGE ? 1 : 1 - survive
@@ -211,25 +216,26 @@ export class Life {
   }
 }
 
-/** Life link code: version.seed.group.choices.mode — seed in base36. */
-export function encodeLife(seed: number, group: Group | undefined, choices: number[], mode: LifeMode = 'ancestor'): string {
-  return [ENGINE_VERSION, seed.toString(36), group ?? '', choices.join(''), mode === 'any' ? 'a' : ''].join('.')
+/** Life link code: version.seed.group.choices.mode.era — seed in base36; empty era is the XX century. */
+export function encodeLife(seed: number, group: Group | undefined, choices: number[], mode: LifeMode = 'ancestor', era: EraId = 'xx'): string {
+  return [ENGINE_VERSION, seed.toString(36), group ?? '', choices.join(''), mode === 'any' ? 'a' : '', era === 'xx' ? '' : era].join('.')
 }
 
-export function decodeLife(code: string): { seed: number; group?: Group; choices: number[]; mode: LifeMode } | null {
-  const [v, s, g, ch, m] = code.split('.')
+export function decodeLife(code: string): { seed: number; group?: Group; choices: number[]; mode: LifeMode; era: EraId } | null {
+  const [v, s, g, ch, m, e] = code.split('.')
+  if (e && !ERA_IDS.includes(e as EraId)) return null
   if (Number(v) !== ENGINE_VERSION || !s) return null
   const seed = parseInt(s, 36)
   if (!Number.isFinite(seed) || seed <= 0 || seed > 0xffffffff || !/^[0-9a-z]+$/.test(s)) return null
-  if (g && !(GROUPS as string[]).includes(g)) return null
+  if (g && !(eraOf(e || 'xx').groups as string[]).includes(g)) return null
   if (ch && !/^[0-2]*$/.test(ch)) return null
-  return { seed, group: (g || undefined) as Group | undefined, choices: (ch ?? '').split('').filter(Boolean).map(Number), mode: m === 'a' ? 'any' : 'ancestor' }
+  return { seed, group: (g || undefined) as Group | undefined, choices: (ch ?? '').split('').filter(Boolean).map(Number), mode: m === 'a' ? 'any' : 'ancestor', era: (e || 'xx') as EraId }
 }
 
 /**
  * "What if": the same life up to choice k, then option `alt`, then typical choices of the time.
  * The world is the same seed, so everything before the choice repeats exactly.
  */
-export function whatIf(seed: number, group: Group | undefined, mode: LifeMode, choices: number[], k: number, alt: number): Person {
-  return new Life({ seed, group, mode, choices: [...choices.slice(0, k), alt], auto: true }).runToEnd()
+export function whatIf(seed: number, group: Group | undefined, mode: LifeMode, choices: number[], k: number, alt: number, era: EraId = 'xx'): Person {
+  return new Life({ seed, group, mode, era, choices: [...choices.slice(0, k), alt], auto: true }).runToEnd()
 }

@@ -1,4 +1,6 @@
 export type Lang = 'kz' | 'ru' | 'en'
+/** Historical era of the life: XV, XVIII, XIX or XX century. */
+export type EraId = 'xv' | 'xviii' | 'xix' | 'xx'
 export type Sex = 'm' | 'f'
 export type Group = 'kazakh' | 'russian' | 'ukrainian' | 'german' | 'tatar' | 'uzbek' | 'uighur' | 'korean' | 'other'
 export type Region = 'zhetisu' | 'syr' | 'arka' | 'shygys' | 'oral' | 'adai' | 'kostanai' | 'aktobe'
@@ -19,6 +21,7 @@ export interface LogEntry {
 
 export interface Person {
   seed: number
+  era: EraId
   sex: Sex
   group: Group
   region: Region

@@ -23,10 +23,10 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
       await pg.waitForSelector('#go')
       if (bname === 'chrome' && !group) await pg.screenshot({ path: `test-results/flow/${lang}-birth.png` })
       await pg.click('#go')
-      await pg.click('#ff')
       let shotChoice = bname === 'chrome' && !group
       const t0 = Date.now()
       while (Date.now() - t0 < 240000) {
+        if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff')
         const opts = await pg.$$('.opt')
         if (opts.length) {
           if (shotChoice) {
@@ -72,6 +72,41 @@ for (const [bname, type, dev] of [['chrome', chromium, devices['Pixel 7']], ['we
       await ctx.close()
       process.stdout.write(`${bname} ${lang} ${group || 'random'}: ${link.split('\n')[0]}\n`)
     }
+  }
+  await b.close()
+}
+// Earlier eras: a full life in each, every language, in Chrome.
+{
+  const b = await chromium.launch({ channel: 'chrome' })
+  for (const era of ['xv', 'xviii', 'xix']) for (const lang of ['ru', 'kz', 'en']) {
+    const pg = await b.newPage({ ...devices['Pixel 7'] })
+    pg.on('pageerror', e => problems.push(`${era} ${lang} pageerror ${e.message}`))
+    await pg.goto(url)
+    await pg.evaluate(l => localStorage.setItem('lang', l), lang)
+    await pg.reload()
+    await pg.click(`[data-e="${era}"]`)
+    await pg.click('#born')
+    await pg.waitForSelector('#go')
+    await pg.click('#go')
+    for (let t0 = Date.now(); Date.now() - t0 < 240000; ) {
+      // "Faster" is hidden while a question is open (a choice can come in the very first year).
+      if (await pg.isVisible('#ff') && !(await pg.$('#ff.on'))) await pg.click('#ff')
+      const o = await pg.$$('.opt')
+      if (o.length) await o[Math.floor(Math.random() * o.length)].click()
+      if (await pg.$('.card-img[src]')) break
+      await pg.waitForTimeout(150)
+    }
+    if (!(await pg.$('.card-img[src]'))) problems.push(`${era} ${lang}: no end card`)
+    else {
+      const text = await pg.evaluate(() => document.body.innerText)
+      if (/\b(ch|chq|card|e15|e18|e19|hist|near|death|job|reg|way|tex|fl)\.[a-z]/.test(text)) problems.push(`${era} ${lang}: raw key in text`)
+      const forks = await pg.$$('.fork')
+      if (!forks.length && !(await pg.$('.forks .lead'))) problems.push(`${era} ${lang}: no forks section`)
+      if (lang === 'ru') await (await pg.$('.card-img')).screenshot({ path: `test-results/flow/era-${era}-card.png` })
+      if (lang === 'ru' && forks.length) await (await pg.$('.forks')).screenshot({ path: `test-results/flow/era-${era}-forks.png` })
+      process.stdout.write(`${era} ${lang}: ${(await pg.$eval('.lead', e => e.textContent)).split('\n')[0]}\n`)
+    }
+    await pg.close()
   }
   await b.close()
 }

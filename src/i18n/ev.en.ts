@@ -656,4 +656,6 @@ export const EV_EN: EvTable = {
   'ch.nineties_town.side': '{name} takes any side job going.',
   'dacha.line': 'Their own cucumbers and potatoes get the family through the hungry nineties.',
   'side_job.line': '{name} works extra in the evenings: wages do not cover living.',
+  'job.craft': 'a craftsperson: sewing, felting, woodcarving',
+  'tex.kid.aul': 'With the neighbours\' children: horse races, the river, grandmother\'s yurt.',
 }

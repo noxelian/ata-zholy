@@ -13,7 +13,8 @@ const wed = (c: Ctx, key: string) => {
 }
 /** Moving to a town inside the country; someone living abroad stays abroad (returning is its own event). */
 const toTown = (c: Ctx) => {
-  if (c.p.way === 'abroad') return
+  // Before the XX century towns were few; a nomad's life does not move into one by marriage.
+  if (c.p.way === 'abroad' || c.p.era !== 'xx') return
   c.p.way = 'town'
   set(c, 'moved_town')
 }
@@ -285,7 +286,7 @@ export const EVENTS_MORE: EventDef[] = [
   once('rare.hero_mother', c => !male(c) && c.p.childYears.length >= 10 && c.year >= 1944, 1, 'good', true),
   once('rare.car', c => y(c, 1965, 1990) && c.age >= 30 && c.age <= 65 && home(c) && free(c), 0.006, 'good', true),
   once('rare.plane', c => y(c, 1958, 1985) && c.age >= 20 && home(c) && free(c), 0.012, 'good'),
-  once('rare.wolf_hunt', c => nomadic(c) && has(c, 'horseman') && c.age >= 14 && c.age <= 30 && c.year < 1935 && home(c) && free(c), 0.01, 'good', true),
+  once('rare.wolf_hunt', c => male(c) && nomadic(c) && has(c, 'horseman') && c.age >= 14 && c.age <= 30 && c.year < 1935 && home(c) && free(c), 0.01, 'good', true),
   once('rare.fire', c => c.age >= 10 && home(c) && free(c) && c.year < 1975, 0.002, 'bad', true),
 
   // Everyday texture: one small line in some quiet years, picked to fit the time and the person.
@@ -320,7 +321,8 @@ function texture(c: Ctx): string[] {
   if (p.job === 'job.teacher') out.push('tex.teacher.class', 'tex.teacher.letter')
   if (p.job === 'job.craft') out.push('tex.craft.order', 'tex.craft.felt')
   if (p.way === 'town' && yr >= 1955) out.push('tex.town.flat', 'tex.town.queue')
-  if (p.childYears.some(b => yr - b === 7)) out.push('tex.family.school')
+  // Schools for everyone came only in the XX century.
+  if (c.p.era === 'xx' && p.childYears.some(b => yr - b === 7)) out.push('tex.family.school')
   if (has(c, 'kid_city') && p.childYears.length && yr - p.childYears[0] >= 19) out.push('tex.family.letter')
   if (kz(c)) out.push('tex.kz.guests')
   // Nauryz was not officially celebrated from 1926 to 1988.
@@ -328,7 +330,7 @@ function texture(c: Ctx): string[] {
   if (yr >= 1960) out.push('tex.radio.song', 'tex.summer.relatives')
   if (c.age >= 55) out.push('tex.old.health')
   if (c.age >= 55 && p.grandchildren > 0) out.push('tex.old.grandkids')
-  if (c.age < 18) out.push('tex.kid.friends', 'tex.kid.river')
+  if (c.age < 18) out.push(c.p.era === 'xx' ? 'tex.kid.friends' : 'tex.kid.aul', 'tex.kid.river')
   return out
 }
 

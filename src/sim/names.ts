@@ -78,7 +78,7 @@ const KR_F: N[] = [
   ['Хан Вера', 'Хан Вера', 'Khan Vera'], ['Тен Ольга', 'Тен Ольга', 'Ten Olga'], ['Югай Софья', 'Югай Софья', 'Yugai Sofya'], ['Шин Любовь', 'Шин Любовь', 'Shin Lyubov'],
 ]
 
-const TABLE: Record<Group, Record<Sex, N[]>> = {
+const TABLE: Record<string, Record<Sex, N[]>> = {
   kazakh: { m: KZ_M, f: KZ_F },
   russian: { m: RU_M, f: RU_F },
   ukrainian: { m: UA_M, f: UA_F },
@@ -91,14 +91,20 @@ const TABLE: Record<Group, Record<Sex, N[]>> = {
 }
 
 /** Returns a name id like "kazakh.m.4". */
-export function pickName(r: Rng, group: Group, sex: Sex): string {
+/** Adds a name list for an era (key like 'kz18'). */
+export function addNames(key: string, m: N[], f: N[]) {
+  TABLE[key] = { m, f }
+}
+export type { N as NameTriple }
+
+export function pickName(r: Rng, group: Group | string, sex: Sex): string {
   const list = TABLE[group][sex]
   return `${group}.${sex}.${r.int(0, list.length - 1)}`
 }
 
 export function nameOf(p: Pick<Person, 'name'>, lang: Lang): string {
   const [g, s, i] = p.name.split('.')
-  const n = TABLE[g as Group]?.[s as Sex]?.[Number(i)]
+  const n = TABLE[g]?.[s as Sex]?.[Number(i)]
   if (!n) return p.name
   return n[lang === 'kz' ? 0 : lang === 'ru' ? 1 : 2]
 }

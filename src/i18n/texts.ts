@@ -3,6 +3,7 @@ import { fmt } from './ui'
 import { EV_RU } from './ev.ru'
 import { EV_KZ } from './ev.kz'
 import { EV_EN } from './ev.en'
+import { ERA_RU, ERA_KZ, ERA_EN } from './eras'
 
 export interface EvText {
   /** Main text. `[он|она]` picks by sex, `{var}` inserts values. */
@@ -12,7 +13,8 @@ export interface EvText {
 }
 export type EvTable = Record<string, string | EvText>
 
-const TABLES: Record<Lang, EvTable> = { ru: EV_RU, kz: EV_KZ, en: EV_EN }
+/** All event texts by language: the XX century plus the earlier eras. */
+export const TABLES: Record<Lang, EvTable> = { ru: { ...EV_RU, ...ERA_RU }, kz: { ...EV_KZ, ...ERA_KZ }, en: { ...EV_EN, ...ERA_EN } }
 
 function sexed(s: string, sex: Sex): string {
   return s.replace(/\[([^|\]]*)\|([^\]]*)\]/g, (_, m, f) => (sex === 'm' ? m : f))
