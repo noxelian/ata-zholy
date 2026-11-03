@@ -24,7 +24,7 @@ export const CHOICES_MORE: ChoiceDef[] = [
   {
     id: 'childhood',
     variants: true,
-    when: c => c.age === 6 && home(c),
+    when: c => c.age === 6 && home(c) && free(c),
     q: c => (nomadic(c) ? 'chq.childhood.aul' : c.p.way === 'town' ? 'chq.childhood.town' : 'chq.childhood.village'),
     options: [
       { id: 'outdoors', apply: c => set(c, nomadic(c) ? 'horseman' : c.p.way === 'town' ? 'tech' : 'land') },

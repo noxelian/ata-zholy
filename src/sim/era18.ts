@@ -201,8 +201,8 @@ export const EVENTS_18: EventDef[] = [
   histLine('e18.hist.tauke', 1710),
   once('e18.aktaban', c => c.year === 1723 && (inR(c, hit1723) || c.p.region === 'kostanai' || c.p.way === 'abroad'), 1, 'bad', true),
   once('e18.refugees', c => c.year === 1723 && inR(c, ['oral', 'aktobe', 'adai']) && !has(c, 'e18.fled'), 1, 'bad'),
-  once('e18.captive', c => c.year === 1723 && inR(c, hit1723) && !has(c, 'e18.south'), c => (c.p.region === 'arka' ? 0.01 : 0.03) * (has(c, 'e18.stay') ? 3 : 1), 'bad', true, c => set(c, 'captive18')),
-  once('e18.captive.free', c => has(c, 'captive18') && c.year >= 1725, 0.15, 'good', true, c => del(c, 'captive18')),
+  once('e18.captive', c => c.year === 1723 && inR(c, hit1723) && !has(c, 'e18.south'), c => (c.p.region === 'arka' ? 0.01 : 0.03) * (has(c, 'e18.stay') ? 3 : 1), 'bad', true, c => set(c, 'captive')),
+  once('e18.captive.free', c => has(c, 'captive') && c.year >= 1725, 0.15, 'good', true, c => del(c, 'captive')),
   once('e18.south.life', c => has(c, 'e18.south') && c.year === 1724, 1, 'bad'),
   once('e18.home_again', c => has(c, 'e18.south') && c.p.way === 'abroad' && y(c, 1726, 1736), 0.3, 'good', true, c => {
     c.p.way = 'seminomad'
@@ -272,7 +272,7 @@ export const HAZARDS_18: Hazard[] = [
     },
   },
   { id: 'smallpox', q: c => ((y(c, 1743, 1744) || y(c, 1755, 1758)) && inR(c, ['zhetisu', 'shygys']) ? (c.age < 10 ? 0.028 : 0.016) : 0.0) },
-  { id: 'captive', q: c => (has(c, 'captive18') ? 0.08 : 0) },
+  { id: 'captive', q: c => (has(c, 'captive') ? 0.08 : 0) },
   { id: 'battle', q: c => (has(c, 'e18.militia') ? (c.year === 1727 ? 0.08 : c.year === 1730 ? 0.1 : 0) : 0) },
   { id: 'batyr', q: c => (has(c, 'e18.batyr') ? 0.05 : 0) },
   { id: 'raid1741', q: c => (c.year === 1741 && inR(c, ['arka', 'shygys']) && home(c) ? 0.04 : 0) },

@@ -340,4 +340,6 @@ export const E15_EN: EvTable = {
   'ch.e15.hide.stay': 'The aul stays at the winter camp.',
   'e15.reeds.line': 'In the reeds it is damp and cold; no fires are lit. The riders passed by.',
   'e15.north.line': 'The trek north: some livestock died, but the army is far away.',
+  'e15.ctx.birth.split': 'Abulkhair Khan rules the steppe north of the Syr Darya, but some clans are already leaving him for the east, for Kerey and Zhanibek.',
+  'e15.ctx.birth.khanate': 'Abulkhair Khan is dead. Kerey and Zhanibek are khans of the Kazakhs: the Kazakh Khanate is born, and the struggle for the Syr Darya towns begins.',
 }

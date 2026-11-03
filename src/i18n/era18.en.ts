@@ -68,7 +68,7 @@ export const E18_EN: EvTable = {
   'e18.batyr.back': '{name} came home from the band.',
   'e18.hist.abulkhair': { t: '1748: Abulkhair Khan is killed.', src: '1748' },
   'e18.hist.uralban': { t: '1756: Kazakhs are forbidden to winter beyond the Yaik. The best pastures are now behind the Russian fortress line.', src: 'decree of 1756' },
-  'e18.hist.dzungaria': { t: 'The Dzungar Khanate falls to the Qing and to smallpox. The lands of Zhetysu are free again.', src: '1755–1758' },
+  'e18.hist.dzungaria': { t: 'The Dzungar Khanate is destroyed: Qing armies massacre the Dzungars, smallpox and famine kill many more, the survivors flee. Kazakh auls slowly return to Zhetysu.', src: 'Qing extermination of the Dzungars, 1755–1758' },
   'chq.e18.return': 'Dzungaria is gone. Return to the ancestral lands in Zhetysu and on the Irtysh?',
   'ch.e18.return.go.btn': 'Return to the east',
   'ch.e18.return.go.hint': 'new pastures, border clashes',

@@ -42,6 +42,8 @@ const warYear = (c: Ctx) => TOWN_WAR.includes(c.year)
 export const born15 = bornEarly({
   prefix: P,
   names: 'kz15',
+  // Who rules depends on the birth year: Abulkhair before the split, the split 1457–68, the khanate after his death.
+  context: y => (y < 1457 ? 'e15.ctx.birth' : y <= 1468 ? 'e15.ctx.birth.split' : 'e15.ctx.birth.khanate'),
   years: [1440, 1475],
   // A little fewer births in the year of the Oirat rout (1456–57) — estimate.
   yearWeight: yr => (yr === 1457 ? 0.8 : 1),

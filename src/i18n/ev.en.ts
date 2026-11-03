@@ -658,4 +658,5 @@ export const EV_EN: EvTable = {
   'side_job.line': '{name} works extra in the evenings: wages do not cover living.',
   'job.craft': 'a craftsperson: sewing, felting, woodcarving',
   'tex.kid.aul': 'With the neighbours\' children: horse races, the river, grandmother\'s yurt.',
+  'job.trade': 'trading at the bazaar',
 }

@@ -32,6 +32,9 @@ const STEPPE: Region[] = ['oral', 'aktobe', 'kostanai', 'arka', 'shygys']
 const inR = (c: Ctx, rs: Region[]) => rs.includes(c.p.region)
 const man = (c: Ctx, a: number, b: number) => male(c) && c.age >= a && c.age <= b
 const adult = (c: Ctx, a = 16, b = 65) => c.age >= a && c.age <= b
+/** Leaving the country ends taking part in a rising (and its follow-up lines). */
+const leaveRisings = (c: Ctx) => del(c, 'e19.isatai', 'e19.kenesary', 'e19.eset', 'e19.zhankozha', 'e19.ural', 'e19.adai')
+
 /** At home and free (not in Khiva captivity, not abroad). `free` also checks the 'captive' flag. */
 const ok = (c: Ctx) => home(c) && free(c)
 /** Lost most of the herd: the way to the жатақ choice. */
@@ -114,7 +117,7 @@ export const CHOICES_19: ChoiceDef[] = [
     when: c => c.year === 1856 && man(c, 16, 60) && c.p.region === 'syr' && ok(c),
     options: [
       { id: 'join', apply: c => set(c, 'e19.zhankozha') },
-      { id: 'khiva', apply: c => ((c.p.way = 'abroad'), set(c, 'e19.abroad.south', 'e19.khiva')) },
+      { id: 'khiva', apply: c => (leaveRisings(c), (c.p.way = 'abroad'), set(c, 'e19.abroad.south', 'e19.khiva')) },
       { id: 'stay', apply: c => set(c, 'e19.fort') },
     ],
     typical: () => [0.25, 0.15, 0.6],
@@ -126,7 +129,7 @@ export const CHOICES_19: ChoiceDef[] = [
     chance: () => 0.05,
     q: c => (c.p.region === 'syr' ? 'chq.e19.migrate.south' : 'chq.e19.migrate.east'),
     options: [
-      { id: 'go', apply: c => ((c.p.way = 'abroad'), set(c, c.p.region === 'syr' ? 'e19.abroad.south' : 'e19.abroad.east')) },
+      { id: 'go', apply: c => (leaveRisings(c), (c.p.way = 'abroad'), set(c, c.p.region === 'syr' ? 'e19.abroad.south' : 'e19.abroad.east')) },
       { id: 'stay', apply: () => {} },
     ],
     typical: () => [0.25, 0.75],
@@ -148,7 +151,7 @@ export const CHOICES_19: ChoiceDef[] = [
     when: c => c.year === 1870 && man(c, 16, 60) && c.p.region === 'adai' && ok(c),
     options: [
       { id: 'join', apply: c => set(c, 'e19.adai') },
-      { id: 'south', apply: c => ((c.p.way = 'abroad'), set(c, 'e19.abroad.south', 'e19.adai_south')) },
+      { id: 'south', apply: c => (leaveRisings(c), (c.p.way = 'abroad'), set(c, 'e19.abroad.south', 'e19.adai_south')) },
       { id: 'submit', apply: c => set(c, 'e19.adai_submit') },
     ],
     typical: () => [0.35, 0.25, 0.4],
@@ -514,6 +517,8 @@ export const HAZARDS_19: Hazard[] = [
   {
     id: 'battle',
     q: c => {
+      // Someone who left for Khiva, Kokand or the Qing lands is out of the rising.
+      if (c.p.way === 'abroad') return 0
       let q = 0
       if (has(c, 'e19.isatai')) q += c.year === 1837 ? 0.1 : c.year === 1838 ? 0.17 : 0
       if (has(c, 'e19.kenesary') && c.year <= 1847) q += c.year === 1847 ? 0.06 : 0.025
@@ -525,7 +530,7 @@ export const HAZARDS_19: Hazard[] = [
     },
   },
   // After 1869 more than 500 were sentenced to death or hard labour (§3.4: 0.15 with the battle risk above, so ≈0.1 here).
-  { id: 'katorga', q: c => (has(c, 'e19.ural') && c.year === 1869 ? 0.1 : 0) },
+  { id: 'katorga', q: c => (has(c, 'e19.ural') && c.year === 1869 && c.p.way !== 'abroad' ? 0.1 : 0) },
   // Raids on auls by armed detachments of either side: Kenesary years, 1869 in the west, Baikov's raids on Mangyshlak in 1870.
   {
     id: 'punitive',

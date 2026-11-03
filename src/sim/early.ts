@@ -19,6 +19,8 @@ export interface EarlyBirth {
   yearWeight?: (y: number) => number
   region: Partial<Record<Region, number>>
   way: (reg: Region) => Partial<Record<Way, number>>
+  /** Text key of the history line at birth, by birth year; default `<prefix>.ctx.birth`. */
+  context?: (year: number) => string
 }
 
 /** A newborn of an early era. Same order of random draws as the XX century so seeds stay stable within an era. */
@@ -58,7 +60,7 @@ export function bornEarly(cfg: EarlyBirth) {
     }
     const siblings = r.int(2, 7)
     p.log.push({ year, age: 0, key: `${cfg.prefix}.birth.${way}`, vars: { region: `${cfg.prefix}.reg.${region}`, sib: siblings }, tone: 'good' })
-    p.log.push({ year, age: 0, key: `${cfg.prefix}.ctx.birth`, tone: 'history' })
+    p.log.push({ year, age: 0, key: cfg.context?.(year) ?? `${cfg.prefix}.ctx.birth`, tone: 'history' })
     return p
   }
 }

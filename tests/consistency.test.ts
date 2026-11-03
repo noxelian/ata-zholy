@@ -76,7 +76,7 @@ test('lives make sense', { timeout: 120000 }, () => {
 })
 
 test('lives from the review replay without contradictions', () => {
-  for (const code of ['2.7uxzfm..000.', '2.1knsxik..000.', '2.1h1ygy6..000.', '2.1v41.kazakh.010110201.', '2.10lu..01011011.']) {
+  for (const code of ['3.7uxzfm..000.', '3.1knsxik..000.', '3.1h1ygy6..000.', '3.1v41.kazakh.010110201.', '3.10lu..01011011.']) {
     const d = decodeLife(code)!
     const p = new Life({ seed: d.seed, group: d.group, choices: d.choices, mode: d.mode }).runToEnd()
     const keys = p.log.map(e => e.key)
@@ -89,8 +89,40 @@ test('lives from the review replay without contradictions', () => {
 })
 
 test('broken links are refused', () => {
-  for (const code of ['2.1.bad.0.', '2.1.kazakh.x.', '2..kazakh..', '3.1...', '2.-5...', '2.zzzzzzzzzz...', '2.1.kazakh.9.']) {
+  for (const code of ['3.1.bad.0.', '3.1.kazakh.x.', '3..kazakh..', '4.1...', '3.-5...', '3.zzzzzzzzzz...', '3.1.kazakh.9.']) {
     expect(decodeLife(code), code).toBeNull()
   }
-  expect(decodeLife('2.abc.kazakh.012.')).not.toBeNull()
+  expect(decodeLife('3.abc.kazakh.012.')).not.toBeNull()
+})
+
+test('earlier eras make sense', { timeout: 180000 }, () => {
+  const bad: string[] = []
+  for (const era of ['xv', 'xviii', 'xix'] as const) {
+    for (let i = 1; i <= 3000; i++) {
+      const seed = (i * 2654435761 + era.length) >>> 0
+      const life = new Life({ seed, era, mode: i % 3 ? 'ancestor' : 'any' })
+      let guard = 0
+      while (life.p.alive && guard++ < 200) {
+        let s = life.next()
+        while (s.kind === 'choice') s = life.choose((seed >> guard % 16) % s.choice.options.length)
+      }
+      const p = life.p
+      const keys = p.log.map(e => e.key)
+      // No railways, teachers or tractors before the XX century.
+      if (p.job && !['job.herder', 'job.craft', 'job.trade', 'job.horses'].includes(p.job)) bad.push(`${era} ${seed}: job ${p.job}`)
+      // In captivity: no personal choices or family events until freed.
+      const i0 = keys.findIndex(k => /^e1[589]\.captive$/.test(k))
+      if (i0 >= 0) {
+        let j = keys.findIndex((k, n) => n > i0 && /captive\.(free|back)|ransom|death\./.test(k))
+        if (j < 0) j = keys.length
+        const inside = keys.slice(i0 + 1, j).filter(k => /^(ch\.|marry|child\.)/.test(k))
+        if (inside.length) bad.push(`${era} ${seed}: captive then ${inside.join(',')}`)
+      }
+      // Nobody dies in a rising they left by going abroad.
+      if (p.deathCause === 'battle' && p.way === 'abroad') bad.push(`${era} ${seed}: battle death abroad`)
+      // Every ancestor leaves a child.
+      if (life.mode === 'ancestor' && !p.childYears.length) bad.push(`${era} ${seed}: ancestor without a child`)
+    }
+  }
+  expect(bad.slice(0, 20)).toEqual([])
 })

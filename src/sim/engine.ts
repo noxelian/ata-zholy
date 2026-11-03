@@ -4,7 +4,7 @@ import { type BirthFacts } from './birth'
 import { ERA_IDS, eraOf, type Era } from './eras'
 
 /** Bumped whenever a seed + choices would give a different life. Old links show a notice. */
-export const ENGINE_VERSION = 2
+export const ENGINE_VERSION = 3
 const MAX_AGE = 104
 
 export interface LifeOptions {

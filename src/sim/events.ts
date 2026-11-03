@@ -23,6 +23,8 @@ export const hist = (id: string, year: number, extra: (c: Ctx) => boolean = () =
 
 export function jobFor(c: Ctx): string {
   const p = c.p
+  // Before the XX century: herding, crafts and trade only.
+  if (p.era !== 'xx') return p.flags.has('craft') && c.r.chance(0.5) ? 'job.craft' : p.way === 'town' ? c.r.pick(['job.craft', 'job.trade']) : 'job.herder'
   if (p.edu === 'uni') return c.r.pick(['job.teacher', 'job.doctor', 'job.engineer', 'job.agronomist'])
   if (p.edu === 'tech') return c.r.pick(['job.teacher', 'job.medic', 'job.accountant', 'job.mechanic'])
   if (p.flags.has('craft') && c.r.chance(0.5)) return 'job.craft'
